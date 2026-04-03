@@ -79,6 +79,11 @@ if not exist auto-win-msvc (
 
 cd valkey
 
+if "!VALKEY_REF!"=="unstable" (
+    echo Updating version for unstable...
+    powershell -Command "(Get-Content src\version.h) -replace '255.255.255', '0.0.0' | Set-Content src\version.h"
+)
+
 echo Applying patch...
 git apply ..\patches\0001-Windows-native-builds.patch
 if errorlevel 1 (
@@ -91,20 +96,34 @@ powershell -Command "Invoke-WebRequest -Uri 'https://github.com/winsw/winsw/rele
 copy /y "..\packaging\valkey-service.xml" "valkey-service.xml"
 
 echo Configuring CPack...
+copy /y COPYING COPYING.txt
 echo. >> CMakeLists.txt
 echo if(WIN32) >> CMakeLists.txt
 echo     install(FILES valkey.conf DESTINATION bin COMPONENT valkey) >> CMakeLists.txt
 echo     install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/valkey-service.exe" DESTINATION bin COMPONENT valkey) >> CMakeLists.txt
 echo     install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/valkey-service.xml" DESTINATION bin COMPONENT valkey) >> CMakeLists.txt
-echo     set(CPACK_GENERATOR "WIX;ZIP;NSIS") >> CMakeLists.txt
-echo     set(CPACK_PACKAGE_NAME "Valkey") >> CMakeLists.txt
-echo     set(CPACK_PACKAGE_VENDOR "Valkey") >> CMakeLists.txt
-echo     set(CPACK_WIX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/wix_patch.xml") >> CMakeLists.txt
-echo     set(CPACK_WIX_UPGRADE_GUID "68097E99-AC62-42B7-B0E3-02FE50FBB6CB") >> CMakeLists.txt
-echo     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\"$INSTDIR\\\\bin\\\\valkey-service.exe\" install'\nExecWait '\"$INSTDIR\\\\bin\\\\valkey-service.exe\" start'") >> CMakeLists.txt
-echo     set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "ExecWait '\"$INSTDIR\\\\bin\\\\valkey-service.exe\" stop'\nExecWait '\"$INSTDIR\\\\bin\\\\valkey-service.exe\" uninstall'") >> CMakeLists.txt
 echo endif() >> CMakeLists.txt
 echo file(WRITE "${CMAKE_BINARY_DIR}/posix_stubs/sys/epoll.h" "#include <linux-epoll.h>\n") >> CMakeLists.txt
+
+echo $cpack = @' > patch_cpack.ps1
+echo if(WIN32) >> patch_cpack.ps1
+echo     set(CPACK_GENERATOR "WIX;ZIP;NSIS") >> patch_cpack.ps1
+echo     set(CPACK_PACKAGE_NAME "Valkey") >> patch_cpack.ps1
+echo     set(CPACK_PACKAGE_VENDOR "Valkey") >> patch_cpack.ps1
+echo     set(CPACK_WIX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/wix_patch.xml") >> patch_cpack.ps1
+echo     set(CPACK_WIX_UPGRADE_GUID "68097E99-AC62-42B7-B0E3-02FE50FBB6CB") >> patch_cpack.ps1
+echo     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" install'\nExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" start'") >> patch_cpack.ps1
+echo     set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "ExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" stop'\nExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" uninstall'") >> patch_cpack.ps1
+echo     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING.txt") >> patch_cpack.ps1
+echo endif() >> patch_cpack.ps1
+echo include(CPack) >> patch_cpack.ps1
+echo '@ >> patch_cpack.ps1
+echo $txt = Get-Content cmake\Modules\Packaging.cmake -Raw >> patch_cpack.ps1
+echo $old = [regex]::Match($txt, 'include\(CPack\)').Value >> patch_cpack.ps1
+echo $txt = $txt.Replace($old, $cpack) >> patch_cpack.ps1
+echo $txt ^| Set-Content cmake\Modules\Packaging.cmake >> patch_cpack.ps1
+
+powershell -ExecutionPolicy Bypass -File patch_cpack.ps1
 
 echo Running CMake...
 cmake -S . -B %BUILD_DIR% -G "Visual Studio 18 2026"
@@ -226,7 +245,7 @@ echo ==============================================
 echo 4. Creating GitHub Release
 echo ==============================================
 echo Uploading artifacts...
-gh release create %TAG_NAME% valkey\%BUILD_DIR%\Valkey-*.msi valkey\%BUILD_DIR%\Valkey-*.exe valkey\%BUILD_DIR%\Valkey-*.zip valkey\%BUILD_DIR%\Release\*.exe --title "Valkey %VALKEY_REF% for Windows" --notes "Windows builds for Valkey %VALKEY_REF%"
+gh release create %TAG_NAME% valkey\%BUILD_DIR%\Valkey-*.msi valkey\%BUILD_DIR%\Valkey-*.exe valkey\%BUILD_DIR%\Valkey-*.zip valkey\%BUILD_DIR%\bin\Release\*.exe --title "Valkey %VALKEY_REF% for Windows" --notes "Windows builds for Valkey %VALKEY_REF%"
 if errorlevel 1 (
     echo Failed to create GitHub release!
     exit /b 1
