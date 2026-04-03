@@ -2,12 +2,13 @@
 setlocal enabledelayedexpansion
 
 if "%~1"=="" (
-    echo Usage: %0 ^<tag_or_branch^> [--local-only]
+    echo Usage: %0 ^<tag_or_branch^> [--local-only] [--hash ^<git_hash^>]
     exit /b 1
 )
 
 set LOCAL_ONLY=0
 set VALKEY_REF=
+set VALKEY_HASH=
 
 :parse_args
 if "%~1"=="" goto validate_args
@@ -16,10 +17,16 @@ if "%~1"=="--local-only" (
     shift
     goto parse_args
 )
+if "%~1"=="--hash" (
+    set VALKEY_HASH=%~2
+    shift
+    shift
+    goto parse_args
+)
 if "!VALKEY_REF!"=="" (
     set VALKEY_REF=%~1
 ) else (
-    echo Usage: %0 ^<tag_or_branch^> [--local-only]
+    echo Usage: %0 ^<tag_or_branch^> [--local-only] [--hash ^<git_hash^>]
     exit /b 1
 )
 shift
@@ -27,15 +34,21 @@ goto parse_args
 
 :validate_args
 if "!VALKEY_REF!"=="" (
-    echo Usage: %0 ^<tag_or_branch^> [--local-only]
+    echo Usage: %0 ^<tag_or_branch^> [--local-only] [--hash ^<git_hash^>]
     exit /b 1
 )
 
 set BUILD_DIR=build_msvc2026
 set REPO_DIR=%~dp0
 
+if "!VALKEY_HASH!"=="" (
+    set CLONE_REF=!VALKEY_REF!
+) else (
+    set CLONE_REF=!VALKEY_HASH!
+)
+
 echo ==============================================
-echo 0. Fetching Valkey at %VALKEY_REF%
+echo 0. Fetching Valkey at !CLONE_REF!
 echo ==============================================
 
 if exist valkey (
@@ -43,14 +56,14 @@ if exist valkey (
     rmdir /s /q valkey
 )
 
-git clone --branch %VALKEY_REF% https://github.com/valkey-io/valkey.git valkey
+git clone --branch !CLONE_REF! https://github.com/valkey-io/valkey.git valkey
 if errorlevel 1 (
-    echo Failed to clone Valkey at %VALKEY_REF%. Trying to fetch if it's not a branch...
+    echo Failed to clone Valkey at !CLONE_REF!. Trying to fetch if it's not a branch...
     git clone https://github.com/valkey-io/valkey.git valkey
     cd valkey
-    git checkout %VALKEY_REF%
+    git checkout !CLONE_REF!
     if errorlevel 1 (
-        echo Failed to checkout %VALKEY_REF%
+        echo Failed to checkout !CLONE_REF!
         exit /b 1
     )
     cd ..
@@ -88,9 +101,10 @@ echo     set(CPACK_PACKAGE_NAME "Valkey") >> CMakeLists.txt
 echo     set(CPACK_PACKAGE_VENDOR "Valkey") >> CMakeLists.txt
 echo     set(CPACK_WIX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/wix_patch.xml") >> CMakeLists.txt
 echo     set(CPACK_WIX_UPGRADE_GUID "68097E99-AC62-42B7-B0E3-02FE50FBB6CB") >> CMakeLists.txt
-echo     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\"$INSTDIR\bin\valkey-service.exe\" install'\nExecWait '\"$INSTDIR\bin\valkey-service.exe\" start'") >> CMakeLists.txt
-echo     set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "ExecWait '\"$INSTDIR\bin\valkey-service.exe\" stop'\nExecWait '\"$INSTDIR\bin\valkey-service.exe\" uninstall'") >> CMakeLists.txt
+echo     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\"$INSTDIR\\\\bin\\\\valkey-service.exe\" install'\nExecWait '\"$INSTDIR\\\\bin\\\\valkey-service.exe\" start'") >> CMakeLists.txt
+echo     set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "ExecWait '\"$INSTDIR\\\\bin\\\\valkey-service.exe\" stop'\nExecWait '\"$INSTDIR\\\\bin\\\\valkey-service.exe\" uninstall'") >> CMakeLists.txt
 echo endif() >> CMakeLists.txt
+echo file(WRITE "${CMAKE_BINARY_DIR}/posix_stubs/sys/epoll.h" "#include <linux-epoll.h>\n") >> CMakeLists.txt
 
 echo Running CMake...
 cmake -S . -B %BUILD_DIR% -G "Visual Studio 18 2026"
@@ -119,8 +133,8 @@ cd ..\..
 echo ==============================================
 echo 2. E2E Testing
 echo ==============================================
-set SERVER_EXE=valkey\%BUILD_DIR%\Release\valkey-server.exe
-set CLI_EXE=valkey\%BUILD_DIR%\Release\valkey-cli.exe
+set SERVER_EXE=valkey\%BUILD_DIR%\bin\Release\valkey-server.exe
+set CLI_EXE=valkey\%BUILD_DIR%\bin\Release\valkey-cli.exe
 
 if not exist "%SERVER_EXE%" (
     echo Server executable not found!

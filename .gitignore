@@ -1,2 +1,18 @@
-auto-win-msvc
-build*
+# Fetched Repositories
+auto-win-msvc/
+valkey/
+
+# Build and Output Directories
+build*/
+*.msi
+*.zip
+
+# Test Outputs
+test_output.txt
+malloc_log.txt
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.suo
+*.sln

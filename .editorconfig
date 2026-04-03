@@ -1,0 +1,30 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Windows batch files prefer CRLF
+[*.{bat,cmd}]
+end_of_line = crlf
+
+# Patch files MUST use LF and should NEVER have trailing whitespace trimmed
+# by the editor, as diff context relies on exact whitespace matching.
+[*.patch]
+end_of_line = lf
+trim_trailing_whitespace = false
+
+# Web/Config files usually prefer 2 spaces
+[*.{json,yml,yaml,xml,md}]
+indent_size = 2
+
+# CMake files
+[CMakeLists.txt]
+indent_size = 4
+
+[*.cmake]
+indent_size = 4
