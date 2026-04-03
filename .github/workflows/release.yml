@@ -1,0 +1,204 @@
+name: Build and Release Valkey Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      valkey_ref:
+        description: 'Valkey branch, tag, or SHA to build'
+        required: false
+        default: 'unstable'
+  schedule:
+    - cron: '0 0 * * 0' # Weekly check for new releases
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.determine-ref.outputs.ref }}
+      tag: ${{ steps.determine-ref.outputs.tag }}
+      release_name: ${{ steps.determine-ref.outputs.release_name }}
+      prerelease: ${{ steps.determine-ref.outputs.prerelease }}
+      should_run: ${{ steps.determine-ref.outputs.should_run }}
+    steps:
+      - name: Determine Valkey Ref
+        id: determine-ref
+        uses: actions/github-script@v7
+        with:
+          script: |
+            let ref = 'unstable';
+            let releaseName = 'Valkey Unstable for Windows';
+            let tagName = 'unstable';
+            let prerelease = true;
+            let shouldRun = true;
+
+            if (context.eventName === 'schedule') {
+              const release = await github.rest.repos.getLatestRelease({
+                owner: 'valkey-io',
+                repo: 'valkey'
+              });
+              ref = release.data.tag_name;
+              tagName = ref;
+              releaseName = `Valkey ${ref} for Windows`;
+              prerelease = false;
+
+              try {
+                await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: tagName
+                });
+                console.log(`Release ${tagName} already exists. Skipping.`);
+                shouldRun = false;
+              } catch (e) {
+                if (e.status === 404) {
+                  console.log(`Release ${tagName} does not exist here. Proceeding.`);
+                } else {
+                  throw e;
+                }
+              }
+            } else if (context.eventName === 'workflow_dispatch') {
+              const inputRef = context.payload.inputs && context.payload.inputs.valkey_ref;
+              if (inputRef && inputRef.trim() !== '') {
+                ref = inputRef;
+                if (inputRef === 'unstable') {
+                  const date = new Date().toISOString().split('T')[0];
+                  const timestamp = new Date().getTime();
+                  tagName = `unstable-${date}-${timestamp}`;
+                  releaseName = `Valkey Unstable (${date}) for Windows`;
+                  prerelease = true;
+                } else {
+                  tagName = inputRef;
+                  releaseName = `Valkey ${inputRef} for Windows`;
+                  prerelease = false;
+                }
+              } else {
+                  const date = new Date().toISOString().split('T')[0];
+                  const timestamp = new Date().getTime();
+                  tagName = `unstable-${date}-${timestamp}`;
+                  releaseName = `Valkey Unstable (${date}) for Windows`;
+                  prerelease = true;
+              }
+            }
+
+            core.setOutput('ref', ref);
+            core.setOutput('tag', tagName);
+            core.setOutput('release_name', releaseName);
+            core.setOutput('prerelease', prerelease.toString());
+            core.setOutput('should_run', shouldRun.toString());
+
+  build-and-release:
+    needs: prepare
+    if: needs.prepare.outputs.should_run == 'true'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Build Scripts
+        uses: actions/checkout@v4
+        with:
+          path: build-repo
+
+      - name: Checkout Valkey
+        uses: actions/checkout@v4
+        with:
+          repository: valkey-io/valkey
+          ref: ${{ needs.prepare.outputs.ref }}
+          path: valkey
+
+      - name: Checkout auto-win-msvc
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/auto-win-msvc
+          path: auto-win-msvc
+        continue-on-error: true
+
+      - name: Apply Windows Build Patch
+        working-directory: valkey
+        run: |
+          git apply ../build-repo/patches/0001-Windows-native-builds.patch
+
+      - name: Prepare Windows Service Wrapper
+        working-directory: valkey
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/winsw/winsw/releases/download/v3.0.0-alpha.11/WinSW-x64.exe" -OutFile "valkey-service.exe"
+          Copy-Item "..\build-repo\packaging\valkey-service.xml" -Destination "valkey-service.xml"
+
+      - name: Configure CPack Packaging
+        working-directory: valkey
+        run: |
+          Add-Content -Path CMakeLists.txt -Value "
+          if(WIN32)
+              install(FILES valkey.conf DESTINATION bin COMPONENT valkey)
+              install(PROGRAMS `"\${CMAKE_CURRENT_SOURCE_DIR}/valkey-service.exe`" DESTINATION bin COMPONENT valkey)
+              install(FILES `"\${CMAKE_CURRENT_SOURCE_DIR}/valkey-service.xml`" DESTINATION bin COMPONENT valkey)
+
+              set(CPACK_GENERATOR `"WIX;ZIP;NSIS`")
+              set(CPACK_PACKAGE_NAME `"Valkey`")
+              set(CPACK_PACKAGE_VENDOR `"Valkey`")
+              # Use the patch file to inject the WiX ServiceInstall elements
+              set(CPACK_WIX_PATCH_FILE `"\${CMAKE_CURRENT_SOURCE_DIR}/../build-repo/packaging/wix_patch.xml`")  
+              set(CPACK_WIX_UPGRADE_GUID `"68097E99-AC62-42B7-B0E3-02FE50FBB6CB`")
+              set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS `"ExecWait '\\\"$INSTDIR\\\\bin\\\\valkey-service.exe\\\" install'\\nExecWait '\\\"$INSTDIR\\\\bin\\\\valkey-service.exe\\\" start'`")
+              set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS `"ExecWait '\\\"$INSTDIR\\\\bin\\\\valkey-service.exe\\\" stop'\\nExecWait '\\\"$INSTDIR\\\\bin\\\\valkey-service.exe\\\" uninstall'`")
+          endif()
+          "
+
+      - name: Configure CMake
+        working-directory: valkey
+        run: cmake -S . -B build_msvc2026 -G "Visual Studio 18 2026"
+
+      - name: Build Valkey
+        working-directory: valkey
+        run: cmake --build build_msvc2026 --config Release
+
+      - name: Package with CPack
+        working-directory: valkey/build_msvc2026
+        run: cpack -C Release
+
+      - name: E2E Testing
+        working-directory: valkey
+        shell: cmd
+        run: |
+          set SERVER_EXE=build_msvc2026\Release\valkey-server.exe
+          set CLI_EXE=build_msvc2026\Release\valkey-cli.exe
+          
+          if not exist "%SERVER_EXE%" exit /b 1
+          if not exist "%CLI_EXE%" exit /b 1
+          
+          echo Starting Valkey Server...
+          start "Valkey Server" "%SERVER_EXE%"
+          timeout /t 3 /nobreak > nul
+          
+          echo Running tests...
+          "%CLI_EXE%" PING > test_output.txt
+          findstr "PONG" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
+          
+          "%CLI_EXE%" SET mykey "Hello Windows" > test_output.txt
+          findstr "OK" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
+          
+          "%CLI_EXE%" GET mykey > test_output.txt
+          findstr "Hello Windows" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
+          
+          "%CLI_EXE%" KEYS * > test_output.txt
+          findstr "mykey" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
+          
+          "%CLI_EXE%" FLUSHDB > test_output.txt
+          findstr "OK" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
+          
+          echo Tests passed!
+          taskkill /f /im valkey-server.exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: ${{ needs.prepare.outputs.release_name }}
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
+          files: |
+            valkey/build_msvc2026/Valkey-*.zip
+            valkey/build_msvc2026/Valkey-*.msi
+            valkey/build_msvc2026/Valkey-*.exe
+            valkey/build_msvc2026/Release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

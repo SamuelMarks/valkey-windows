@@ -1,0 +1,8 @@
+<service>
+  <id>Valkey</id>
+  <name>Valkey</name>
+  <description>Valkey is an open source (BSD) high-performance key/value datastore.</description>
+  <executable>%BASE%\valkey-server.exe</executable>
+  <arguments>"%BASE%\valkey.conf"</arguments>
+  <log mode="roll"></log>
+</service>
