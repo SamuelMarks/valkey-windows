@@ -146,7 +146,7 @@ jobs:
 
       - name: Configure CMake
         working-directory: valkey
-        run: cmake -S . -B build_msvc2026 -G "Visual Studio 18 2026"
+        run: cmake -S . -B build_msvc2026 -G "Visual Studio 17 2022"
 
       - name: Build Valkey
         working-directory: valkey
