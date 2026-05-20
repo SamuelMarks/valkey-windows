@@ -1,11 +1,11 @@
-From d32d1895a4bb114cf9dca1ada891fadc07608479 Mon Sep 17 00:00:00 2001
+From 691e4f1ea5e43432ae89cc4c0fcf97d3635097d6 Mon Sep 17 00:00:00 2001
 From: Samuel Marks <807580+SamuelMarks@users.noreply.github.com>
 Date: Wed, 20 May 2026 17:06:01 +1200
 Subject: [PATCH] Windows native builds (MSVC2026)
 
 ---
  CMakeLists.txt                  | 509 +++++++++++++++++++++++++++++++-
- cmake/Modules/Packaging.cmake   |  13 +-
+ cmake/Modules/Packaging.cmake   |  99 ++++---
  cmake/Modules/ValkeySetup.cmake |  89 ++++--
  deps/libvalkey/CMakeLists.txt   |  36 +--
  deps/linenoise/CMakeLists.txt   |   3 +-
@@ -14,7 +14,7 @@ Subject: [PATCH] Windows native builds (MSVC2026)
  src/queues.c                    |   2 +-
  src/unit/CMakeLists.txt         |  22 +-
  tests/support/server.tcl        |   4 +-
- 10 files changed, 641 insertions(+), 92 deletions(-)
+ 10 files changed, 684 insertions(+), 135 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 3c7c1b8a3..34ffcdb31 100644
@@ -555,14 +555,79 @@ index 3c7c1b8a3..34ffcdb31 100644
 +endif() 
 +file(WRITE "${CMAKE_BINARY_DIR}/posix_stubs/sys/epoll.h" "#include <linux-epoll.h>\n") 
 diff --git a/cmake/Modules/Packaging.cmake b/cmake/Modules/Packaging.cmake
-index c7ed5c426..4226a27b6 100644
+index c7ed5c426..63247a337 100644
 --- a/cmake/Modules/Packaging.cmake
 +++ b/cmake/Modules/Packaging.cmake
-@@ -23,7 +23,17 @@ if (DISTRO_NAME MATCHES ubuntu
-     set(CPACK_GENERATOR "DEB")
- endif ()
- 
+@@ -1,44 +1,55 @@
+-set(CPACK_PACKAGE_NAME "valkey")
+-
+-valkey_parse_version(CPACK_PACKAGE_VERSION_MAJOR CPACK_PACKAGE_VERSION_MINOR CPACK_PACKAGE_VERSION_PATCH)
+-
+-set(CPACK_PACKAGE_CONTACT "maintainers@lists.valkey.io")
+-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Valkey is an open source (BSD) high-performance key/value datastore")
+-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING")
+-set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+-set(CPACK_STRIP_FILES TRUE)
+-
+-valkey_get_distro_name(DISTRO_NAME)
+-message(STATUS "Current host distro: ${DISTRO_NAME}")
+-
+-if (DISTRO_NAME MATCHES ubuntu
+-    OR DISTRO_NAME MATCHES debian
+-    OR DISTRO_NAME MATCHES mint)
+-    message(STATUS "Adding target package for ${DISTRO_NAME}")
+-    set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/valkey")
+-    # Debian related parameters
+-    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Valkey contributors")
+-    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+-    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+-    set(CPACK_GENERATOR "DEB")
+-endif ()
+-
 -include(CPack)
+-unset(DISTRO_NAME CACHE)
+-
+-# ---------------------------------------------------
+-# Create a helper script for creating symbolic links
+-# ---------------------------------------------------
+-write_file(
+-    ${CMAKE_BINARY_DIR}/CreateSymlink.sh
+-    "\
+-#!/bin/bash                                                 \n\
+-if [ -z \${DESTDIR} ]; then                                 \n\
+-    # Script is called during 'make install'                \n\
+-    PREFIX=${CMAKE_INSTALL_PREFIX}/bin                      \n\
+-else                                                        \n\
+-    # Script is called during 'make package'                \n\
+-    PREFIX=\${DESTDIR}${CPACK_PACKAGING_INSTALL_PREFIX}/bin \n\
+-fi                                                          \n\
+-cd \$PREFIX                                                 \n\
+-ln -sf \$1 \$2")
++set(CPACK_PACKAGE_NAME "valkey")
++
++valkey_parse_version(CPACK_PACKAGE_VERSION_MAJOR CPACK_PACKAGE_VERSION_MINOR CPACK_PACKAGE_VERSION_PATCH)
++
++set(CPACK_PACKAGE_CONTACT "maintainers@lists.valkey.io")
++set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Valkey is an open source (BSD) high-performance key/value datastore")
++set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING")
++set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
++set(CPACK_STRIP_FILES TRUE)
++
++valkey_get_distro_name(DISTRO_NAME)
++message(STATUS "Current host distro: ${DISTRO_NAME}")
++
++if (DISTRO_NAME MATCHES ubuntu
++    OR DISTRO_NAME MATCHES debian
++    OR DISTRO_NAME MATCHES mint)
++    message(STATUS "Adding target package for ${DISTRO_NAME}")
++    set(CPACK_PACKAGING_INSTALL_PREFIX "/opt/valkey")
++    # Debian related parameters
++    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Valkey contributors")
++    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
++    set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
++    set(CPACK_GENERATOR "DEB")
++endif ()
++
 +if(WIN32) 
 +    set(CPACK_GENERATOR "WIX;ZIP;NSIS") 
 +    set(CPACK_PACKAGE_NAME "Valkey") 
@@ -571,16 +636,27 @@ index c7ed5c426..4226a27b6 100644
 +    set(CPACK_WIX_UPGRADE_GUID "68097E99-AC62-42B7-B0E3-02FE50FBB6CB") 
 +    set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" install'\nExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" start'") 
 +    set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "ExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" stop'\nExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" uninstall'") 
-+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING.txt") 
++    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING") 
 +endif() 
 +include(CPack) 
- unset(DISTRO_NAME CACHE)
- 
- # ---------------------------------------------------
-@@ -42,3 +52,4 @@ else                                                        \n\
- fi                                                          \n\
- cd \$PREFIX                                                 \n\
- ln -sf \$1 \$2")
++unset(DISTRO_NAME CACHE)
++
++# ---------------------------------------------------
++# Create a helper script for creating symbolic links
++# ---------------------------------------------------
++write_file(
++    ${CMAKE_BINARY_DIR}/CreateSymlink.sh
++    "\
++#!/bin/bash                                                 \n\
++if [ -z \${DESTDIR} ]; then                                 \n\
++    # Script is called during 'make install'                \n\
++    PREFIX=${CMAKE_INSTALL_PREFIX}/bin                      \n\
++else                                                        \n\
++    # Script is called during 'make package'                \n\
++    PREFIX=\${DESTDIR}${CPACK_PACKAGING_INSTALL_PREFIX}/bin \n\
++fi                                                          \n\
++cd \$PREFIX                                                 \n\
++ln -sf \$1 \$2")
 +
 diff --git a/cmake/Modules/ValkeySetup.cmake b/cmake/Modules/ValkeySetup.cmake
 index 4efefefe6..7518f7e4c 100644
