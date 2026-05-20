@@ -495,14 +495,14 @@ index 3c7c1b8a3..34ffcdb31 100644
 +
 +file(APPEND "${CMAKE_BINARY_DIR}/msvc_compat.h" "#define read posix_read
 +#define write posix_write
-+int posix_read(int fd, void *buf, unsigned int count);
-+int posix_write(int fd, const void *buf, unsigned int count);
++int posix_read(int fd, void *buf, size_t count);
++int posix_write(int fd, const void *buf, size_t count);
 +")
 +
 +file(APPEND "${CMAKE_BINARY_DIR}/msvc_compat.h" "#define _read posix_read
 +#define _write posix_write
-+int posix_read(int fd, void *buf, unsigned int count);
-+int posix_write(int fd, const void *buf, unsigned int count);
++int posix_read(int fd, void *buf, size_t count);
++int posix_write(int fd, const void *buf, size_t count);
 +")
 +file(APPEND "${CMAKE_BINARY_DIR}/msvc_compat.h" "\n#define close posix_close\n#define _close posix_close\n#define connect posix_connect\nint posix_close(int fd);\n")
 +
