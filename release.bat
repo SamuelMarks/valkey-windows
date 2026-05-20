@@ -85,7 +85,7 @@ if "!VALKEY_REF!"=="unstable" (
 )
 
 echo Applying patch...
-git apply ..\patches\0001-Windows-native-builds.patch
+git apply --ignore-whitespace ..\patches\0001-Windows-native-builds.patch
 if errorlevel 1 (
     echo Failed to apply patch
     exit /b 1
