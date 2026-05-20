@@ -116,7 +116,7 @@ jobs:
       - name: Apply Windows Build Patch
         working-directory: valkey
         run: |
-          git apply ../build-repo/patches/0001-Windows-native-builds.patch
+          git apply --ignore-whitespace ../build-repo/patches/0001-Windows-native-builds.patch
 
       - name: Prepare Windows Service Wrapper
         working-directory: valkey
