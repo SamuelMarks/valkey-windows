@@ -188,6 +188,7 @@ jobs:
             valkey/build_msvc2026/Valkey-*.zip
             valkey/build_msvc2026/Valkey-*.msi
             valkey/build_msvc2026/Valkey-*.exe
-            valkey/build_msvc2026/Release/*.exe
+            valkey/build_msvc2026/bin/Release/valkey-server.exe
+            valkey/build_msvc2026/bin/Release/valkey-cli.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
