@@ -127,6 +127,7 @@ jobs:
       - name: Configure CPack Packaging
         working-directory: valkey
         run: |
+          Copy-Item "COPYING" -Destination "COPYING.txt"
           $cpack = @'
           if(WIN32)
               install(FILES valkey.conf DESTINATION bin COMPONENT valkey)
