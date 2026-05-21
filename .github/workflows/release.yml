@@ -124,6 +124,9 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/winsw/winsw/releases/download/v3.0.0-alpha.11/WinSW-x64.exe" -OutFile "valkey-service.exe"
           Copy-Item "..\build-repo\packaging\valkey-service.xml" -Destination "valkey-service.xml"
 
+      - name: Install NSIS
+        run: choco install nsis -y
+
       - name: Configure CPack Packaging
         working-directory: valkey
         run: |
