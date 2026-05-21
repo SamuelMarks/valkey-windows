@@ -128,22 +128,7 @@ jobs:
         working-directory: valkey
         run: |
           Copy-Item "COPYING" -Destination "COPYING.txt"
-          $cpack = @'
-          if(WIN32)
-              install(FILES valkey.conf DESTINATION bin COMPONENT valkey)
-              install(PROGRAMS "${CMAKE_CURRENT_SOURCE_DIR}/valkey-service.exe" DESTINATION bin COMPONENT valkey)
-              install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/valkey-service.xml" DESTINATION bin COMPONENT valkey)
-
-              set(CPACK_GENERATOR "WIX;ZIP;NSIS")
-              set(CPACK_PACKAGE_NAME "Valkey")
-              set(CPACK_PACKAGE_VENDOR "Valkey")
-              set(CPACK_WIX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../build-repo/packaging/wix_patch.xml")
-              set(CPACK_WIX_UPGRADE_GUID "68097E99-AC62-42B7-B0E3-02FE50FBB6CB")
-              set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '$\"$INSTDIR\\bin\\valkey-service.exe$\" install'\nExecWait '$\"$INSTDIR\\bin\\valkey-service.exe$\" start'")
-              set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "ExecWait '$\"$INSTDIR\\bin\\valkey-service.exe$\" stop'\nExecWait '$\"$INSTDIR\\bin\\valkey-service.exe$\" uninstall'")
-          endif()
-          '@
-          Add-Content -Path CMakeLists.txt -Value $cpack
+          Copy-Item -Recurse "..\build-repo\packaging" "..\packaging"
 
       - name: Configure CMake
         working-directory: valkey
