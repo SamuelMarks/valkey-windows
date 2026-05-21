@@ -149,8 +149,8 @@ jobs:
         working-directory: valkey
         shell: cmd
         run: |
-          set SERVER_EXE=build_msvc2026\Release\valkey-server.exe
-          set CLI_EXE=build_msvc2026\Release\valkey-cli.exe
+          set SERVER_EXE=build_msvc2026\bin\Release\valkey-server.exe
+          set CLI_EXE=build_msvc2026\bin\Release\valkey-cli.exe
           
           if not exist "%SERVER_EXE%" exit /b 1
           if not exist "%CLI_EXE%" exit /b 1
