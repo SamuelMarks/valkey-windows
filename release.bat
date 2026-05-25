@@ -77,6 +77,10 @@ if not exist auto-win-msvc (
     git clone https://github.com/SamuelMarks/auto-win-msvc.git auto-win-msvc
 )
 
+echo Fixing auto-win-msvc compatibility issues...
+cmake -P patch_auto_win_msvc.cmake
+
+
 cd valkey
 
 if "!VALKEY_REF!"=="unstable" (
@@ -85,11 +89,14 @@ if "!VALKEY_REF!"=="unstable" (
 )
 
 echo Applying patch...
-git apply --ignore-whitespace ..\patches\0001-Windows-native-builds.patch
+git apply --ignore-whitespace --recount ..\patches\0001-Windows-native-builds.patch
 if errorlevel 1 (
     echo Failed to apply patch
     exit /b 1
 )
+
+echo Fixing 32-bit architecture misdetection...
+powershell -Command "(Get-Content src\server.c) -replace 'sizeof\(long\) == 8', 'sizeof(void*) == 8' | Set-Content src\server.c"
 
 echo Preparing Windows Service Wrapper...
 powershell -Command "Invoke-WebRequest -Uri 'https://github.com/winsw/winsw/releases/download/v3.0.0-alpha.11/WinSW-x64.exe' -OutFile 'valkey-service.exe'"
