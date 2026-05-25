@@ -1,4 +1,4 @@
-﻿diff --git a/CMakeLists.txt b/CMakeLists.txt
+diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 3c7c1b8a3..1c474ad9c 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
@@ -719,19 +719,19 @@ index 4efefefe6..8a0690920 100644
 +
 +
 diff --git a/deps/libvalkey/CMakeLists.txt b/deps/libvalkey/CMakeLists.txt
-index c3632089b..a2297d3f5 100644
+index 08c48d63f..ae9620fea 100644
 --- a/deps/libvalkey/CMakeLists.txt
 +++ b/deps/libvalkey/CMakeLists.txt
-@@ -46,7 +46,7 @@ set(valkey_sources
-     src/command.c
+@@ -47,7 +47,7 @@ set(valkey_sources
      src/conn.c
      src/crc16.c
+     src/dict.c
 -    src/net.c
 +    ${CMAKE_BINARY_DIR}/patched/deps/libvalkey/src/net.c
      src/read.c
      src/sockcompat.c
      src/valkey.c
-@@ -103,6 +103,7 @@ if(valkey_compile_definitions)
+@@ -100,6 +100,7 @@ if(valkey_compile_definitions)
  endif()
  
  TARGET_INCLUDE_DIRECTORIES(valkey
@@ -739,7 +739,7 @@ index c3632089b..a2297d3f5 100644
      PUBLIC
          $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/valkey>
-@@ -143,7 +144,7 @@ set(CPACK_RPM_PACKAGE_LICENSE "BSD-3-Clause")
+@@ -139,7 +140,7 @@ set(CPACK_RPM_PACKAGE_LICENSE "BSD-3-Clause")
  include(CPack)
  
  INSTALL(TARGETS valkey
@@ -748,7 +748,7 @@ index c3632089b..a2297d3f5 100644
      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-@@ -169,9 +170,7 @@ endif()
+@@ -165,9 +166,7 @@ endif()
  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey.pc
      DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
  
@@ -759,7 +759,7 @@ index c3632089b..a2297d3f5 100644
  
  if(WIN32)
      SET(CMAKE_CONF_INSTALL_DIR share/valkey)
-@@ -186,10 +185,7 @@ configure_package_config_file(valkey-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}
+@@ -182,10 +181,7 @@ configure_package_config_file(valkey-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}
                                INSTALL_DESTINATION ${CMAKE_CONF_INSTALL_DIR}
                                PATH_VARS INCLUDE_INSTALL_DIR)
  
@@ -771,7 +771,7 @@ index c3632089b..a2297d3f5 100644
  
  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey-config.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/valkey-config-version.cmake
-@@ -229,7 +225,7 @@ IF(ENABLE_TLS)
+@@ -224,7 +220,7 @@ IF(ENABLE_TLS)
      CONFIGURE_FILE(valkey_tls.pc.in valkey_tls.pc @ONLY)
  
      INSTALL(TARGETS valkey_tls
@@ -780,7 +780,7 @@ index c3632089b..a2297d3f5 100644
          RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-@@ -248,9 +244,7 @@ IF(ENABLE_TLS)
+@@ -243,9 +239,7 @@ IF(ENABLE_TLS)
      INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_tls.pc
          DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
  
@@ -791,7 +791,7 @@ index c3632089b..a2297d3f5 100644
  
      if(WIN32)
          SET(CMAKE_CONF_INSTALL_DIR share/valkey_tls)
-@@ -261,10 +255,7 @@ IF(ENABLE_TLS)
+@@ -256,10 +250,7 @@ IF(ENABLE_TLS)
                                    INSTALL_DESTINATION ${CMAKE_CONF_INSTALL_DIR}
                                    PATH_VARS INCLUDE_INSTALL_DIR)
  
@@ -803,7 +803,7 @@ index c3632089b..a2297d3f5 100644
  
      INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_tls-config.cmake
          DESTINATION ${CMAKE_CONF_INSTALL_DIR})
-@@ -301,7 +292,7 @@ if(ENABLE_RDMA)
+@@ -295,7 +286,7 @@ if(ENABLE_RDMA)
      configure_file(valkey_rdma.pc.in valkey_rdma.pc @ONLY)
  
      install(TARGETS valkey_rdma
@@ -812,7 +812,7 @@ index c3632089b..a2297d3f5 100644
          RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-@@ -313,19 +304,14 @@ if(ENABLE_RDMA)
+@@ -307,19 +298,14 @@ if(ENABLE_RDMA)
      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_rdma.pc
          DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
  
@@ -861,7 +861,7 @@ index 6a1396d66..203f27ba3 100644
  # Use mkstemp if available
  check_function_exists(mkstemp HAVE_MKSTEMP)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 6ef9d816f..fee8c23d5 100644
+index 9e52edcf5..c15883b7c 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -13,6 +13,11 @@ list(APPEND SERVER_LIBS "hdr_histogram")
@@ -876,9 +876,9 @@ index 6ef9d816f..fee8c23d5 100644
  add_dependencies(valkey-server generate_commands_def)
  add_dependencies(valkey-server generate_fmtargs_h)
  add_dependencies(valkey-server release_header)
-@@ -75,14 +80,7 @@ valkey_build_and_install_bin(valkey-cli "${VALKEY_CLI_SRCS}" "${VALKEY_SERVER_LD
- add_dependencies(valkey-cli generate_commands_def)
+@@ -76,16 +81,6 @@ add_dependencies(valkey-cli generate_commands_def)
  add_dependencies(valkey-cli generate_fmtargs_h)
+ add_dependencies(valkey-cli release_header)
  
 -# Target: valkey-benchmark
 -list(APPEND BENCH_LIBS "fpconv")
@@ -888,11 +888,12 @@ index 6ef9d816f..fee8c23d5 100644
 -                             "redis-benchmark")
 -add_dependencies(valkey-benchmark generate_commands_def)
 -add_dependencies(valkey-benchmark generate_fmtargs_h)
-+
- 
+-add_dependencies(valkey-benchmark release_header)
+-
  # Targets: valkey-sentinel, valkey-check-aof and valkey-check-rdb are just symbolic links
  valkey_create_symlink("valkey-server" "valkey-sentinel")
-@@ -122,15 +120,18 @@ if (BUILD_EXAMPLE_MODULES)
+ valkey_create_symlink("valkey-server" "valkey-check-rdb")
+@@ -124,15 +119,18 @@ if (BUILD_EXAMPLE_MODULES)
  endif ()
  
  if (BUILD_UNIT_GTESTS)
@@ -966,33 +967,172 @@ index 6b8d40a39..8c64ce1b8 100644
      message(STATUS "Building STATIC LUA module")
      add_library(valkeylua STATIC "${LUA_ENGINE_SRCS}")
 diff --git a/src/queues.c b/src/queues.c
-index 20c27f423..9efe198fe 100644
+index d2146d5d9..bccba89c4 100644
 --- a/src/queues.c
 +++ b/src/queues.c
-@@ -106,7 +106,7 @@ size_t mpscDequeueBatch(mpscQueue *q, void **jobs_out, size_t max_jobs) {
+@@ -9,7 +9,7 @@
+ 
+ #include "queues.h"
+ #include "zmalloc.h"
+-inline void mpscInit(mpscQueue *q) {
++void mpscInit(mpscQueue *q) {
+     q->buffer = (_Atomic(void *) *)zmalloc(sizeof(_Atomic(void *)) * MPSC_QUEUE_SIZE);
+     atomic_init(&q->head, 0);
+     atomic_init(&q->tail, 0);
+@@ -21,7 +21,7 @@ inline void mpscInit(mpscQueue *q) {
+     }
+ }
+ 
+-inline void mpscFree(mpscQueue *q) {
++void mpscFree(mpscQueue *q) {
+     if (q->buffer) {
+         zfree(q->buffer);
+         q->buffer = NULL;
+@@ -32,7 +32,7 @@ inline void mpscFree(mpscQueue *q) {
+     q->tail_cache = 0;
+ }
+ 
+-inline bool mpscEnqueue(mpscQueue *q, void *data, mpscTicket *ticket) {
++bool mpscEnqueue(mpscQueue *q, void *data, mpscTicket *ticket) {
+     size_t tail;
+     assert(data);
+ 
+@@ -65,7 +65,7 @@ inline bool mpscEnqueue(mpscQueue *q, void *data, mpscTicket *ticket) {
+     return true;
+ }
+ 
+-inline size_t mpscDequeueBatch(mpscQueue *q, void **jobs_out, size_t max_jobs) {
++size_t mpscDequeueBatch(mpscQueue *q, void **jobs_out, size_t max_jobs) {
+     size_t popped_count = 0;
+     size_t head = atomic_load_explicit(&q->head, memory_order_relaxed);
+     size_t tail = q->tail_cache;
+@@ -103,7 +103,7 @@ inline size_t mpscDequeueBatch(mpscQueue *q, void **jobs_out, size_t max_jobs) {
   * SPMC QUEUE (Single-Producer Multi-Consumer)
   * ========================================================================== */
  
--inline void spmcInit(spmcQueue *q, size_t queue_size) {
-+void spmcInit(spmcQueue *q, size_t queue_size) {
-     /* Queue size must be a power of 2 (the masking logic relies on it) */
-     assert((queue_size & (queue_size - 1)) == 0);
-     q->buffer = (spmcCell *)zmalloc_cache_aligned(sizeof(spmcCell) * queue_size);
+-inline void spmcInit(spmcQueue *q) {
++void spmcInit(spmcQueue *q) {
+     q->buffer = (spmcCell *)zmalloc_cache_aligned(sizeof(spmcCell) * SPMC_QUEUE_SIZE);
+     atomic_init(&q->head, 0);
+     q->tail = 0;
+@@ -115,7 +115,7 @@ inline void spmcInit(spmcQueue *q) {
+     }
+ }
+ 
+-inline void spmcFree(spmcQueue *q) {
++void spmcFree(spmcQueue *q) {
+     if (q->buffer) {
+         zfree(q->buffer);
+         q->buffer = NULL;
+@@ -125,7 +125,7 @@ inline void spmcFree(spmcQueue *q) {
+     q->head_cache = 0;
+ }
+ 
+-inline bool spmcIsEmpty(spmcQueue *q) {
++bool spmcIsEmpty(spmcQueue *q) {
+     /* Fast path: Check against cached consumer position */
+     if (q->tail == q->head_cache) {
+         return true;
+@@ -138,12 +138,12 @@ inline bool spmcIsEmpty(spmcQueue *q) {
+     return q->tail == curr_head;
+ }
+ 
+-inline size_t spmcSize(spmcQueue *q) {
++size_t spmcSize(spmcQueue *q) {
+     size_t head = atomic_load_explicit(&q->head, memory_order_relaxed);
+     return (q->tail >= head) ? (q->tail - head) : 0;
+ }
+ 
+-inline bool spmcEnqueue(spmcQueue *q, void *data) {
++bool spmcEnqueue(spmcQueue *q, void *data) {
+     spmcCell *cell = &q->buffer[q->tail & SPMC_QUEUE_MASK];
+     size_t seq = atomic_load_explicit(&cell->sequence, memory_order_acquire);
+ 
+@@ -163,7 +163,7 @@ inline bool spmcEnqueue(spmcQueue *q, void *data) {
+     return true;
+ }
+ 
+-inline void *spmcDequeue(spmcQueue *q) {
++void *spmcDequeue(spmcQueue *q) {
+     size_t head = atomic_load_explicit(&q->head, memory_order_relaxed);
+     spmcCell *cell;
+     void *data;
+@@ -199,7 +199,7 @@ inline void *spmcDequeue(spmcQueue *q) {
+  * SPSC QUEUE (Single-Producer Single-Consumer)
+  * ========================================================================== */
+ 
+-inline void spscInit(spscQueue *q) {
++void spscInit(spscQueue *q) {
+     q->buffer = (void **)zmalloc(sizeof(void *) * SPSC_QUEUE_SIZE);
+     atomic_init(&q->head, 0);
+     atomic_init(&q->tail, 0);
+@@ -208,7 +208,7 @@ inline void spscInit(spscQueue *q) {
+     q->tail_local = 0;
+ }
+ 
+-inline void spscFree(spscQueue *q) {
++void spscFree(spscQueue *q) {
+     if (q->buffer) {
+         zfree(q->buffer);
+         q->buffer = NULL;
+@@ -220,7 +220,7 @@ inline void spscFree(spscQueue *q) {
+     q->tail_local = 0;
+ }
+ 
+-inline bool spscIsFull(spscQueue *q) {
++bool spscIsFull(spscQueue *q) {
+     const size_t curr_tail = q->tail_local;
+ 
+     if (curr_tail - q->head_cache >= SPSC_QUEUE_SIZE) {
+@@ -237,7 +237,7 @@ inline bool spscIsFull(spscQueue *q) {
+     return false;
+ }
+ 
+-inline void spscEnqueue(spscQueue *q, void *data, bool commit) {
++void spscEnqueue(spscQueue *q, void *data, bool commit) {
+     q->buffer[q->tail_local & SPSC_QUEUE_MASK] = data;
+     q->tail_local++;
+ 
+@@ -246,13 +246,13 @@ inline void spscEnqueue(spscQueue *q, void *data, bool commit) {
+     }
+ }
+ 
+-inline void spscCommit(spscQueue *q) {
++void spscCommit(spscQueue *q) {
+     size_t tail = atomic_load_explicit(&q->tail, memory_order_relaxed);
+     if (q->tail_local == tail) return;
+     atomic_store_explicit(&q->tail, q->tail_local, memory_order_release);
+ }
+ 
+-inline size_t spscDequeueBatch(spscQueue *q, void **jobs_out, size_t num_jobs) {
++size_t spscDequeueBatch(spscQueue *q, void **jobs_out, size_t num_jobs) {
+     size_t curr_head = atomic_load_explicit(&q->head, memory_order_relaxed);
+     size_t curr_tail_cache = q->tail_cache;
+ 
+@@ -272,7 +272,7 @@ inline size_t spscDequeueBatch(spscQueue *q, void **jobs_out, size_t num_jobs) {
+     return count;
+ }
+ 
+-inline bool spscIsEmpty(spscQueue *q) {
++bool spscIsEmpty(spscQueue *q) {
+     /* Fast path */
+     if (q->tail_local == q->head_cache) {
+         return true;
 diff --git a/src/unit/CMakeLists.txt b/src/unit/CMakeLists.txt
-index fcc754129..5c8bde07b 100644
+index 6e7df6d62..c42038ea6 100644
 --- a/src/unit/CMakeLists.txt
 +++ b/src/unit/CMakeLists.txt
-@@ -40,7 +40,9 @@ FetchContent_MakeAvailable(googletest)
- 
+@@ -41,7 +41,9 @@ FetchContent_MakeAvailable(googletest)
  # Build Valkey sources as a static library for the test (C code compiled with C compiler)
  add_library(valkeylib-gtest STATIC ${VALKEY_SERVER_SRCS})
+ add_dependencies(valkeylib-gtest release_header)
 +if(NOT MSVC)
  target_compile_options(valkeylib-gtest PRIVATE -Og -g -fno-lto)
 +endif()
  target_compile_definitions(valkeylib-gtest PRIVATE "${COMPILE_DEFINITIONS}")
  target_include_directories(valkeylib-gtest PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/deps)
  target_link_libraries(valkeylib-gtest ffc)
-@@ -50,7 +52,7 @@ set(GENERATED_WRAPPERS_DIR ${CMAKE_BINARY_DIR}/gtest_generated)
+@@ -51,7 +53,7 @@ set(GENERATED_WRAPPERS_DIR ${CMAKE_BINARY_DIR}/gtest_generated)
  file(MAKE_DIRECTORY ${GENERATED_WRAPPERS_DIR})
  add_custom_command(
      OUTPUT ${GENERATED_WRAPPERS_DIR}/generated_wrappers.cpp ${GENERATED_WRAPPERS_DIR}/generated_wrappers.hpp
@@ -1001,7 +1141,7 @@ index fcc754129..5c8bde07b 100644
      DEPENDS ${CMAKE_CURRENT_LIST_DIR}/wrappers.h ${CMAKE_CURRENT_LIST_DIR}/generate-wrappers.py
      WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
      COMMENT "Generating wrapper files from wrappers.h"
-@@ -60,10 +62,15 @@ add_custom_command(
+@@ -61,10 +63,15 @@ add_custom_command(
  add_custom_target(generate_wrappers DEPENDS ${GENERATED_WRAPPERS_DIR}/generated_wrappers.cpp ${GENERATED_WRAPPERS_DIR}/generated_wrappers.hpp)
  
  # Collect C++ test source files (excluding generated ones for now)
@@ -1017,7 +1157,7 @@ index fcc754129..5c8bde07b 100644
  add_executable(valkey-unit-gtests ${GTEST_SRCS} ${GENERATED_WRAPPERS_DIR}/generated_wrappers.cpp)
  
  # Make sure generated files are created before building
-@@ -79,14 +86,19 @@ set_target_properties(valkey-unit-gtests PROPERTIES
+@@ -80,14 +87,19 @@ set_target_properties(valkey-unit-gtests PROPERTIES
  target_compile_definitions(valkey-unit-gtests PRIVATE "${COMPILE_DEFINITIONS}")
  
  # Allow C-style void pointer conversions in C++
@@ -1039,7 +1179,7 @@ index fcc754129..5c8bde07b 100644
  
  # Include directories for C++ compilation
  target_include_directories(valkey-unit-gtests PRIVATE
-@@ -102,7 +114,7 @@ if (UNIX AND NOT APPLE)
+@@ -103,7 +115,7 @@ if (UNIX AND NOT APPLE)
  
      # Extract all wrapped function names from wrappers.h and add --wrap linker flags
      execute_process(
@@ -1048,7 +1188,7 @@ index fcc754129..5c8bde07b 100644
  import re
  import sys
  with open('${CMAKE_CURRENT_LIST_DIR}/wrappers.h', 'r') as f:
-@@ -162,7 +174,7 @@ add_custom_target(test-unit
+@@ -163,7 +175,7 @@ add_custom_target(test-unit
          [ -n \"$large_memory\" ] && TEST_ARGS=\"$TEST_ARGS --large-memory\"; \
          [ -n \"$valgrind\" ] && TEST_ARGS=\"$TEST_ARGS --valgrind\"; \
          [ -n \"$seed\" ] && TEST_ARGS=\"$TEST_ARGS --seed $seed\"; \
