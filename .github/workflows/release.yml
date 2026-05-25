@@ -157,7 +157,7 @@ jobs:
           
           echo Starting Valkey Server...
           start "Valkey Server" "%SERVER_EXE%"
-          timeout /t 3 /nobreak > nul
+          ping 127.0.0.1 -n 4 > nul
           
           echo Running tests...
           "%CLI_EXE%" PING > test_output.txt

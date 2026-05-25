@@ -1,5 +1,5 @@
 ﻿diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 3c7c1b8a3..1c474ad9c 100644
+index 3c7c1b8a3..cf691ce35 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -20,13 +20,397 @@ option(BUILD_EXAMPLE_MODULES "Build example modules" OFF)
@@ -532,7 +532,7 @@ index 3c7c1b8a3..1c474ad9c 100644
 +endif() 
 +file(WRITE "${CMAKE_BINARY_DIR}/posix_stubs/sys/epoll.h" "#include <linux-epoll.h>\n") 
 diff --git a/cmake/Modules/Packaging.cmake b/cmake/Modules/Packaging.cmake
-index c7ed5c426..e8ca6b6bf 100644
+index c7ed5c426..0adddaccb 100644
 --- a/cmake/Modules/Packaging.cmake
 +++ b/cmake/Modules/Packaging.cmake
 @@ -23,7 +23,27 @@ if (DISTRO_NAME MATCHES ubuntu
@@ -571,7 +571,7 @@ index c7ed5c426..e8ca6b6bf 100644
 +
 +
 diff --git a/cmake/Modules/ValkeySetup.cmake b/cmake/Modules/ValkeySetup.cmake
-index 4efefefe6..8a0690920 100644
+index 4efefefe6..caf374909 100644
 --- a/cmake/Modules/ValkeySetup.cmake
 +++ b/cmake/Modules/ValkeySetup.cmake
 @@ -50,13 +50,23 @@ endif ()
@@ -719,7 +719,7 @@ index 4efefefe6..8a0690920 100644
 +
 +
 diff --git a/deps/libvalkey/CMakeLists.txt b/deps/libvalkey/CMakeLists.txt
-index c3632089b..a2297d3f5 100644
+index c3632089b..7e44468ee 100644
 --- a/deps/libvalkey/CMakeLists.txt
 +++ b/deps/libvalkey/CMakeLists.txt
 @@ -46,7 +46,7 @@ set(valkey_sources
@@ -834,8 +834,92 @@ index c3632089b..a2297d3f5 100644
  
      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_rdma-config.cmake
          DESTINATION ${CMAKE_CONF_INSTALL_DIR})
+diff --git a/deps/libvalkey/include/valkey/sockcompat.h b/deps/libvalkey/include/valkey/sockcompat.h
+index b080e162f..aa3293d86 100644
+--- a/deps/libvalkey/include/valkey/sockcompat.h
++++ b/deps/libvalkey/include/valkey/sockcompat.h
+@@ -81,6 +81,7 @@ int win32_poll(struct pollfd *fds, nfds_t nfds, int timeout);
+ int win32_valkeyKeepAlive(SOCKET sockfd, int interval_ms);
+ 
+ #ifndef VALKEY_SOCKCOMPAT_IMPLEMENTATION
++#if !defined(NAMESPACE_WIN_SHIM_H)
+ #define getaddrinfo(node, service, hints, res) win32_getaddrinfo(node, service, hints, res)
+ #undef gai_strerror
+ #define gai_strerror(errcode) win32_gai_strerror(errcode)
+@@ -95,6 +96,7 @@ int win32_valkeyKeepAlive(SOCKET sockfd, int interval_ms);
+ #define recv(sockfd, buf, len, flags) win32_recv(sockfd, buf, len, flags)
+ #define send(sockfd, buf, len, flags) win32_send(sockfd, buf, len, flags)
+ #define poll(fds, nfds, timeout) win32_poll(fds, nfds, timeout)
++#endif /* NAMESPACE_WIN_SHIM_H */
+ #endif /* VALKEY_SOCKCOMPAT_IMPLEMENTATION */
+ #endif /* _WIN32 */
+ 
+diff --git a/deps/libvalkey/src/sockcompat.c b/deps/libvalkey/src/sockcompat.c
+index 9dff18a8b..83ae5d32a 100644
+--- a/deps/libvalkey/src/sockcompat.c
++++ b/deps/libvalkey/src/sockcompat.c
+@@ -296,6 +296,10 @@ int win32_valkeyKeepAlive(SOCKET sockfd, int interval_ms) {
+     cfg.keepaliveinterval = interval_ms;
+     cfg.keepalivetime = interval_ms;
+ 
++#if defined(NAMESPACE_WIN_SHIM_H)
++    sockfd = (SOCKET)_get_osfhandle((int)sockfd);
++#endif
++
+     res = WSAIoctl(sockfd, SIO_KEEPALIVE_VALS, &cfg,
+                    sizeof(struct tcp_keepalive), NULL, 0,
+                    &bytes_in, NULL, NULL);
+diff --git a/deps/libvalkey/src/valkey_private.h b/deps/libvalkey/src/valkey_private.h
+index 65011c98b..1dc9851d4 100644
+--- a/deps/libvalkey/src/valkey_private.h
++++ b/deps/libvalkey/src/valkey_private.h
+@@ -44,7 +44,7 @@
+ LIBVALKEY_API void valkeySetError(valkeyContext *c, int type, const char *str);
+ 
+ /* Helper function. Convert struct timeval to millisecond. */
+-static inline int valkeyContextTimeoutMsec(const struct timeval *timeout, long *result) {
++static int valkeyContextTimeoutMsec(const struct timeval *timeout, long *result) {
+     long max_msec = (LONG_MAX - 999) / 1000;
+     long msec = INT_MAX;
+ 
+@@ -67,7 +67,7 @@ static inline int valkeyContextTimeoutMsec(const struct timeval *timeout, long *
+ }
+ 
+ /* Get connect timeout of valkeyContext */
+-static inline int valkeyConnectTimeoutMsec(valkeyContext *c, long *result) {
++static int valkeyConnectTimeoutMsec(valkeyContext *c, long *result) {
+     const struct timeval *timeout = c->connect_timeout;
+     int ret = valkeyContextTimeoutMsec(timeout, result);
+ 
+@@ -79,7 +79,7 @@ static inline int valkeyConnectTimeoutMsec(valkeyContext *c, long *result) {
+ }
+ 
+ /* Get command timeout of valkeyContext */
+-static inline int valkeyCommandTimeoutMsec(valkeyContext *c, long *result) {
++static int valkeyCommandTimeoutMsec(valkeyContext *c, long *result) {
+     const struct timeval *timeout = c->command_timeout;
+     int ret = valkeyContextTimeoutMsec(timeout, result);
+ 
+@@ -90,7 +90,7 @@ static inline int valkeyCommandTimeoutMsec(valkeyContext *c, long *result) {
+     return ret;
+ }
+ 
+-static inline int valkeyContextUpdateConnectTimeout(valkeyContext *c,
++static int valkeyContextUpdateConnectTimeout(valkeyContext *c,
+                                                     const struct timeval *timeout) {
+     /* Same timeval struct, short circuit */
+     if (c->connect_timeout == timeout)
+@@ -107,7 +107,7 @@ static inline int valkeyContextUpdateConnectTimeout(valkeyContext *c,
+     return VALKEY_OK;
+ }
+ 
+-static inline int valkeyContextUpdateCommandTimeout(valkeyContext *c,
++static int valkeyContextUpdateCommandTimeout(valkeyContext *c,
+                                                     const struct timeval *timeout) {
+     /* Same timeval struct, short circuit */
+     if (c->command_timeout == timeout)
 diff --git a/deps/linenoise/CMakeLists.txt b/deps/linenoise/CMakeLists.txt
-index f801e4abf..6552f7ada 100644
+index f801e4abf..f61de5bda 100644
 --- a/deps/linenoise/CMakeLists.txt
 +++ b/deps/linenoise/CMakeLists.txt
 @@ -1,4 +1,5 @@
@@ -846,7 +930,7 @@ index f801e4abf..6552f7ada 100644
 +include_directories("${CMAKE_CURRENT_LIST_DIR}")
  add_library(linenoise STATIC ${SRCS})
 diff --git a/deps/lua/CMakeLists.txt b/deps/lua/CMakeLists.txt
-index 6a1396d66..203f27ba3 100644
+index 6a1396d66..bd9494871 100644
 --- a/deps/lua/CMakeLists.txt
 +++ b/deps/lua/CMakeLists.txt
 @@ -44,7 +44,9 @@ set(LUA_SRCS
@@ -861,7 +945,7 @@ index 6a1396d66..203f27ba3 100644
  # Use mkstemp if available
  check_function_exists(mkstemp HAVE_MKSTEMP)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 6ef9d816f..fee8c23d5 100644
+index 6ef9d816f..d65905aa7 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -13,6 +13,11 @@ list(APPEND SERVER_LIBS "hdr_histogram")
@@ -916,7 +1000,7 @@ index 6ef9d816f..fee8c23d5 100644
 +)
 +
 diff --git a/src/modules/lua/CMakeLists.txt b/src/modules/lua/CMakeLists.txt
-index 6b8d40a39..8c64ce1b8 100644
+index 6b8d40a39..63b0cb1fc 100644
 --- a/src/modules/lua/CMakeLists.txt
 +++ b/src/modules/lua/CMakeLists.txt
 @@ -1,23 +1,37 @@
@@ -966,7 +1050,7 @@ index 6b8d40a39..8c64ce1b8 100644
      message(STATUS "Building STATIC LUA module")
      add_library(valkeylua STATIC "${LUA_ENGINE_SRCS}")
 diff --git a/src/queues.c b/src/queues.c
-index 20c27f423..9efe198fe 100644
+index 20c27f423..2e0317045 100644
 --- a/src/queues.c
 +++ b/src/queues.c
 @@ -106,7 +106,7 @@ size_t mpscDequeueBatch(mpscQueue *q, void **jobs_out, size_t max_jobs) {
@@ -979,7 +1063,7 @@ index 20c27f423..9efe198fe 100644
      assert((queue_size & (queue_size - 1)) == 0);
      q->buffer = (spmcCell *)zmalloc_cache_aligned(sizeof(spmcCell) * queue_size);
 diff --git a/src/unit/CMakeLists.txt b/src/unit/CMakeLists.txt
-index fcc754129..5c8bde07b 100644
+index fcc754129..cf6f6acb3 100644
 --- a/src/unit/CMakeLists.txt
 +++ b/src/unit/CMakeLists.txt
 @@ -40,7 +40,9 @@ FetchContent_MakeAvailable(googletest)
@@ -1058,7 +1142,7 @@ index fcc754129..5c8bde07b 100644
      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
      COMMENT "Running tests with gtest-parallel"
 diff --git a/tests/support/server.tcl b/tests/support/server.tcl
-index 832f3ca86..76afabf2b 100644
+index 832f3ca86..d1f984f6a 100644
 --- a/tests/support/server.tcl
 +++ b/tests/support/server.tcl
 @@ -350,12 +350,12 @@ proc spawn_server {executable config_file stdout stderr args} {
