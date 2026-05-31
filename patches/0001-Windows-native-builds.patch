@@ -9,10 +9,10 @@ index 3c7c1b8a3..cf691ce35 100644
 -add_compile_options(-Wundef)
 +
 +include(FetchContent)
-+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../auto-win-msvc")
++if(EXISTS "${auto_win_msvc_SOURCE_DIR}")
 +    FetchContent_Declare(
 +        auto_win_msvc
-+        SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../auto-win-msvc"
++        SOURCE_DIR "${auto_win_msvc_SOURCE_DIR}"
 +    )
 +else()
 +    FetchContent_Declare(
@@ -245,7 +245,7 @@ index 3c7c1b8a3..cf691ce35 100644
 +    
 +    # Extract include directories from auto-win-msvc
 +    get_target_property(MEGA_INCLUDES auto-win-msvc INTERFACE_INCLUDE_DIRECTORIES)
-+    get_filename_component(AUTO_WIN_MSVC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../auto-win-msvc" ABSOLUTE)
++    get_filename_component(AUTO_WIN_MSVC_DIR "${auto_win_msvc_SOURCE_DIR}" ABSOLUTE)
 +    file(GLOB POSIX_EXTRA_DIRS "${AUTO_WIN_MSVC_DIR}/posix-*/include" "${AUTO_WIN_MSVC_DIR}/bsd-*/include" "${AUTO_WIN_MSVC_DIR}/linux-*/include")
 +    list(FILTER POSIX_EXTRA_DIRS EXCLUDE REGEX "posix-stdatomic")
 +    message(WARNING "POSIX_EXTRA_DIRS = ${POSIX_EXTRA_DIRS}")

@@ -16,3 +16,7 @@ malloc_log.txt
 .idea/
 *.suo
 *.sln
+*.log
+*.txt
+CMAKE_AUTO_CHANGE_PLAN.md
+test_*.c
