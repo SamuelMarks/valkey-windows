@@ -133,7 +133,7 @@ echo $txt ^| Set-Content cmake\Modules\Packaging.cmake >> patch_cpack.ps1
 powershell -ExecutionPolicy Bypass -File patch_cpack.ps1
 
 echo Running CMake...
-cmake -S . -B %BUILD_DIR% -G "Visual Studio 18 2026"
+cmake -S . -B %BUILD_DIR% -G "Visual Studio 17 2022"
 if errorlevel 1 (
     echo CMake configuration failed
     exit /b 1
