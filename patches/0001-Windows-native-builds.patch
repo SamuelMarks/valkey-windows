@@ -542,7 +542,7 @@ index c7ed5c426..0adddaccb 100644
  
 -include(CPack)
 +if(WIN32) 
-+    set(CPACK_GENERATOR "WIX;ZIP;NSIS") 
++    set(CPACK_GENERATOR "ZIP") 
 +    set(CPACK_PACKAGE_NAME "Valkey") 
 +    set(CPACK_PACKAGE_VENDOR "Valkey") 
 +    set(CPACK_WIX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/wix_patch.xml") 
@@ -552,7 +552,7 @@ index c7ed5c426..0adddaccb 100644
 +    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING") 
 +endif() 
 +if(WIN32) 
-+    set(CPACK_GENERATOR "WIX;ZIP;NSIS") 
++    set(CPACK_GENERATOR "ZIP") 
 +    set(CPACK_PACKAGE_NAME "Valkey") 
 +    set(CPACK_PACKAGE_VENDOR "Valkey") 
 +    set(CPACK_WIX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/wix_patch.xml") 
