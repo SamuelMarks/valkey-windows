@@ -727,6 +727,7 @@ index c3632089b..7e44468ee 100644
      src/command.c
      src/conn.c
      src/crc16.c
+     src/dict.c
 -    src/net.c
 +    ${CMAKE_BINARY_DIR}/patched/deps/libvalkey/src/net.c
      src/read.c
@@ -876,13 +877,14 @@ index 65011c98b..1dc9851d4 100644
 +++ b/deps/libvalkey/src/valkey_private.h
 @@ -44,7 +44,7 @@
  LIBVALKEY_API void valkeySetError(valkeyContext *c, int type, const char *str);
+ LIBVALKEY_API void valkeySetErrorFromErrno(valkeyContext *c, int type, const char *prefix);
+ void valkeyClearError(valkeyContext *c);
  
  /* Helper function. Convert struct timeval to millisecond. */
 -static inline int valkeyContextTimeoutMsec(const struct timeval *timeout, long *result) {
 +static int valkeyContextTimeoutMsec(const struct timeval *timeout, long *result) {
      long max_msec = (LONG_MAX - 999) / 1000;
      long msec = INT_MAX;
- 
 @@ -67,7 +67,7 @@ static inline int valkeyContextTimeoutMsec(const struct timeval *timeout, long *
  }
  
@@ -961,9 +963,9 @@ index 6ef9d816f..d65905aa7 100644
  add_dependencies(valkey-server generate_commands_def)
  add_dependencies(valkey-server generate_fmtargs_h)
  add_dependencies(valkey-server release_header)
-@@ -75,14 +80,7 @@ valkey_build_and_install_bin(valkey-cli "${VALKEY_CLI_SRCS}" "${VALKEY_SERVER_LD
- add_dependencies(valkey-cli generate_commands_def)
+@@ -75,15 +80,7 @@
  add_dependencies(valkey-cli generate_fmtargs_h)
+ add_dependencies(valkey-cli release_header)
  
 -# Target: valkey-benchmark
 -list(APPEND BENCH_LIBS "fpconv")
@@ -973,6 +975,7 @@ index 6ef9d816f..d65905aa7 100644
 -                             "redis-benchmark")
 -add_dependencies(valkey-benchmark generate_commands_def)
 -add_dependencies(valkey-benchmark generate_fmtargs_h)
+-add_dependencies(valkey-benchmark release_header)
 +
  
  # Targets: valkey-sentinel, valkey-check-aof and valkey-check-rdb are just symbolic links
@@ -1054,29 +1057,29 @@ diff --git a/src/queues.c b/src/queues.c
 index 20c27f423..2e0317045 100644
 --- a/src/queues.c
 +++ b/src/queues.c
-@@ -106,7 +106,7 @@ size_t mpscDequeueBatch(mpscQueue *q, void **jobs_out, size_t max_jobs) {
+@@ -106,7 +106,7 @@
   * SPMC QUEUE (Single-Producer Multi-Consumer)
   * ========================================================================== */
  
 -inline void spmcInit(spmcQueue *q, size_t queue_size) {
 +void spmcInit(spmcQueue *q, size_t queue_size) {
      /* Queue size must be a power of 2 (the masking logic relies on it) */
-     assert((queue_size & (queue_size - 1)) == 0);
+-    assert(queue_size > 0 && (queue_size & (queue_size - 1)) == 0);
++    assert(queue_size > 0 && (queue_size & (queue_size - 1)) == 0);
      q->buffer = (spmcCell *)zmalloc_cache_aligned(sizeof(spmcCell) * queue_size);
 diff --git a/src/unit/CMakeLists.txt b/src/unit/CMakeLists.txt
 index fcc754129..cf6f6acb3 100644
 --- a/src/unit/CMakeLists.txt
 +++ b/src/unit/CMakeLists.txt
-@@ -40,7 +40,9 @@ FetchContent_MakeAvailable(googletest)
- 
+@@ -40,7 +40,9 @@
  # Build Valkey sources as a static library for the test (C code compiled with C compiler)
  add_library(valkeylib-gtest STATIC ${VALKEY_SERVER_SRCS})
+ add_dependencies(valkeylib-gtest release_header)
 +if(NOT MSVC)
  target_compile_options(valkeylib-gtest PRIVATE -Og -g -fno-lto)
 +endif()
  target_compile_definitions(valkeylib-gtest PRIVATE "${COMPILE_DEFINITIONS}")
  target_include_directories(valkeylib-gtest PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/deps)
- target_link_libraries(valkeylib-gtest ffc)
 @@ -50,7 +52,7 @@ set(GENERATED_WRAPPERS_DIR ${CMAKE_BINARY_DIR}/gtest_generated)
  file(MAKE_DIRECTORY ${GENERATED_WRAPPERS_DIR})
  add_custom_command(
