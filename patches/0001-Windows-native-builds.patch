@@ -10,6 +10,7 @@ index 3c7c1b8a3..cf691ce35 100644
 +
 +include(FetchContent)
 +if(EXISTS "${auto_win_msvc_SOURCE_DIR}")
++    set(FETCHCONTENT_SOURCE_DIR_AUTO_WIN_MSVC "${auto_win_msvc_SOURCE_DIR}" CACHE PATH "")
 +    FetchContent_Declare(
 +        auto_win_msvc
 +        SOURCE_DIR "${auto_win_msvc_SOURCE_DIR}"
