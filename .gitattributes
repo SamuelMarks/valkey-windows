@@ -1,25 +1,7 @@
-# Default behavior: let git auto-detect text files and normalize line endings
-* text=auto
-
-# Explicitly declare text files you want to always be normalized and converted
-# to native line endings on checkout.
-*.c text
-*.h text
-*.cpp text
-*.hpp text
-*.md text
-*.txt text
-*.xml text
-*.yml text
-*.yaml text
-
-# Enforce CRLF for Windows batch files
+* text=auto eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
-
-# Enforce LF for patch files. This is critically important because
-# `git apply` will often fail if patch files have CRLF line endings.
-*.patch text eol=lf
-
-# Enforce LF for shell scripts (if any are added)
-*.sh text eol=lf
+*.ps1 text eol=crlf
+*.sln text eol=crlf
+*.vcxproj text eol=crlf
+*.vcxproj.filters text eol=crlf
