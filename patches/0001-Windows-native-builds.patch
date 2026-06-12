@@ -2,7 +2,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 3c7c1b8a3..cf691ce35 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -20,13 +20,397 @@ option(BUILD_EXAMPLE_MODULES "Build example modules" OFF)
+@@ -20,13 +20,398 @@ option(BUILD_EXAMPLE_MODULES "Build example modules" OFF)
  
  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
  project("valkey")
