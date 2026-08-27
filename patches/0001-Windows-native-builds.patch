@@ -1,12 +1,109 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 3c7c1b8a3..1c474ad9c 100644
+index 3c7c1b8a3..c98afea54 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -20,13 +20,397 @@ option(BUILD_EXAMPLE_MODULES "Build example modules" OFF)
- 
- set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
- project("valkey")
+@@ -1,78 +1,563 @@
+-cmake_minimum_required(VERSION 3.10)
+-
+-# Must be done first
+-if (APPLE)
+-    # Force clang compiler on macOS
+-    find_program(CLANGPP "clang++")
+-    find_program(CLANG "clang")
+-    if (CLANG AND CLANGPP)
+-        message(STATUS "Found ${CLANGPP}, ${CLANG}")
+-        set(CMAKE_CXX_COMPILER ${CLANGPP})
+-        set(CMAKE_C_COMPILER ${CLANG})
+-    endif ()
+-endif ()
+-
+-# Options
+-set(BUILD_LUA "static" CACHE STRING "Build Valkey Lua scripting engine: static (default), module, no")
+-option(BUILD_UNIT_GTESTS "Build valkey-unit-gtests" OFF)
+-option(BUILD_TEST_MODULES "Build all test modules" OFF)
+-option(BUILD_EXAMPLE_MODULES "Build example modules" OFF)
+-
+-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+-project("valkey")
 -add_compile_options(-Wundef)
+-
+-set(CMAKE_C_STANDARD 11)
+-set(CMAKE_C_STANDARD_REQUIRED ON)
+-set(CMAKE_C_EXTENSIONS ON)
+-
+-include(ValkeySetup)
+-add_subdirectory(src)
+-add_subdirectory(tests)
+-
+-# Include the packaging module
+-include(Packaging)
+-
+-# Clear cached variables from the cache
+-unset(BUILD_LUA CACHE)
+-unset(BUILD_TESTS CACHE)
+-unset(CLANGPP CACHE)
+-unset(CLANG CACHE)
+-unset(BUILD_RDMA_MODULE CACHE)
+-unset(BUILD_TLS_MODULE CACHE)
+-unset(BUILD_UNIT_GTESTS CACHE)
+-unset(BUILD_TEST_MODULES CACHE)
+-unset(BUILD_EXAMPLE_MODULES CACHE)
+-unset(USE_TLS CACHE)
+-unset(DEBUG_FORCE_DEFRAG CACHE)
+-
+-# Helper to copy runtest scripts to allow running tests with CMake built binaries
+-function(copy_runtest_script script_name)
+-    set(src "${CMAKE_SOURCE_DIR}/${script_name}")
+-    set(dst "${CMAKE_BINARY_DIR}/${script_name}")
+-    file(READ "${src}" contents)
+-
+-    # Split at the first newline (after shebang #!/bin/sh)
+-    string(FIND "${contents}" "\n" index_of_first_newline_char)
+-    math(EXPR first_index_script_body "${index_of_first_newline_char} + 1")
+-
+-    string(SUBSTRING "${contents}" 0 ${first_index_script_body} shebang_line)
+-    string(SUBSTRING "${contents}" ${first_index_script_body} -1 script_body)
+-
+-    # Insert our environment variable lines
+-    set(insert_content
+-"# Most tests assume running from the project root
+-cd ${CMAKE_SOURCE_DIR}
+-export VALKEY_BIN_DIR=\"${CMAKE_BINARY_DIR}/bin\"
+-")
+-    # Reconstruct the full script
+-    set(new_contents "${shebang_line}${insert_content}${script_body}")
+-    file(WRITE "${dst}" "${new_contents}")
+-    file(CHMOD "${dst}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+-endfunction()
+-
+-copy_runtest_script("runtest")
+-copy_runtest_script("runtest-cluster")
+-copy_runtest_script("runtest-moduleapi")
+-copy_runtest_script("runtest-rdma")
+-copy_runtest_script("runtest-sentinel")
+\ No newline at end of file
++cmake_minimum_required(VERSION 3.10)
++
++# Must be done first
++if (APPLE)
++    # Force clang compiler on macOS
++    find_program(CLANGPP "clang++")
++    find_program(CLANG "clang")
++    if (CLANG AND CLANGPP)
++        message(STATUS "Found ${CLANGPP}, ${CLANG}")
++        set(CMAKE_CXX_COMPILER ${CLANGPP})
++        set(CMAKE_C_COMPILER ${CLANG})
++    endif ()
++endif ()
++
++# Options
++set(BUILD_LUA "static" CACHE STRING "Build Valkey Lua scripting engine: static (default), module, no")
++option(BUILD_UNIT_GTESTS "Build valkey-unit-gtests" OFF)
++option(BUILD_TEST_MODULES "Build all test modules" OFF)
++option(BUILD_EXAMPLE_MODULES "Build example modules" OFF)
++
++set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
++project("valkey")
 +
 +include(FetchContent)
 +if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../auto-win-msvc")
@@ -260,12 +357,13 @@ index 3c7c1b8a3..1c474ad9c 100644
 +    add_compile_options("/D__x86_64__" "/DHAVE_PIPE2=1" "/DHAVE_EPOLL=1" "/DHAVE_EPOLL_CREATE=1" "/DHAVE_EPOLL_WAIT=1" "/DHAVE_EPOLL=1" "/DHAVE_EPOLL_CREATE=1" "/DHAVE_EPOLL_WAIT=1" "/wd4273" "/wd4005" "/wd4067" "/D_CRT_SECURE_NO_WARNINGS" "/D_CRT_NONSTDC_NO_WARNINGS" "/D_WINSOCK_DEPRECATED_NO_WARNINGS")
 +    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /std:c11 /experimental:c11atomics")
 +endif()
- 
- set(CMAKE_C_STANDARD 11)
- set(CMAKE_C_STANDARD_REQUIRED ON)
- set(CMAKE_C_EXTENSIONS ON)
- 
++
++set(CMAKE_C_STANDARD 11)
++set(CMAKE_C_STANDARD_REQUIRED ON)
++set(CMAKE_C_EXTENSIONS ON)
++
 +file(READ src/server.c CONTENT)
++string(REPLACE "sizeof(long) == 8" "sizeof(void*) == 8" CONTENT "${CONTENT}")
 +string(REPLACE "robj objects[argc];" "robj *objects = _alloca(sizeof(robj) * argc);" CONTENT "${CONTENT}")
 +string(REPLACE "robj *argv[argc];" "robj **argv = _alloca(sizeof(robj*) * argc);" CONTENT "${CONTENT}")
 +string(REPLACE "server.page_size = sysconf(_SC_PAGESIZE);" "server.page_size = 4096;" CONTENT "${CONTENT}")
@@ -278,6 +376,11 @@ index 3c7c1b8a3..1c474ad9c 100644
 +file(READ src/valkey-benchmark.c CONTENT)
 +string(REPLACE "char data[config.datasize];" "char *data = _alloca(config.datasize);" CONTENT "${CONTENT}")
 +file(WRITE "${CMAKE_BINARY_DIR}/patched/src/valkey-benchmark.c" "${CONTENT}")
++
++file(READ src/queues.c CONTENT)
++string(REPLACE "inline void spmcInit" "void spmcInit" CONTENT "${CONTENT}")
++file(WRITE "${CMAKE_BINARY_DIR}/patched/src/queues.c" "${CONTENT}")
++
 +file(READ src/networking.c CONTENT)
 +string(REPLACE "struct iovec iov_arr[IOV_MAX];" "struct iovec *iov_arr = _alloca(sizeof(struct iovec) * IOV_MAX);" CONTENT "${CONTENT}")
 +string(REPLACE "struct iovec iov_arr[iovmax];" "struct iovec *iov_arr = _alloca(sizeof(struct iovec) * iovmax);" CONTENT "${CONTENT}")
@@ -363,6 +466,7 @@ index 3c7c1b8a3..1c474ad9c 100644
 +    "deps/linenoise/linenoise.c"
 +    "src/server.c"
 +    "src/hashtable.c"
++    "src/queues.c"
 +    "src/valkey-benchmark.c"
 +    "src/networking.c"
 +    "src/sha256.h"
@@ -377,7 +481,7 @@ index 3c7c1b8a3..1c474ad9c 100644
 +    "src/util.c"
 +)
 +
- include(ValkeySetup)
++include(ValkeySetup)
 +
 +foreach(F IN LISTS PATCHED_FILES)
 +    if(DEFINED VALKEY_SERVER_SRCS)
@@ -398,33 +502,43 @@ index 3c7c1b8a3..1c474ad9c 100644
 +endforeach()
 +
 +include_directories("${CMAKE_SOURCE_DIR}/src")
- add_subdirectory(src)
- add_subdirectory(tests)
- 
-@@ -34,17 +418,6 @@ add_subdirectory(tests)
- include(Packaging)
- 
- # Clear cached variables from the cache
--unset(BUILD_LUA CACHE)
--unset(BUILD_TESTS CACHE)
--unset(CLANGPP CACHE)
--unset(CLANG CACHE)
--unset(BUILD_RDMA_MODULE CACHE)
--unset(BUILD_TLS_MODULE CACHE)
--unset(BUILD_UNIT_GTESTS CACHE)
--unset(BUILD_TEST_MODULES CACHE)
--unset(BUILD_EXAMPLE_MODULES CACHE)
--unset(USE_TLS CACHE)
--unset(DEBUG_FORCE_DEFRAG CACHE)
- 
- # Helper to copy runtest scripts to allow running tests with CMake built binaries
- function(copy_runtest_script script_name)
-@@ -75,4 +448,109 @@ copy_runtest_script("runtest")
- copy_runtest_script("runtest-cluster")
- copy_runtest_script("runtest-moduleapi")
- copy_runtest_script("runtest-rdma")
--copy_runtest_script("runtest-sentinel")
-\ No newline at end of file
++add_subdirectory(src)
++add_subdirectory(tests)
++
++# Include the packaging module
++include(Packaging)
++
++# Clear cached variables from the cache
++
++# Helper to copy runtest scripts to allow running tests with CMake built binaries
++function(copy_runtest_script script_name)
++    set(src "${CMAKE_SOURCE_DIR}/${script_name}")
++    set(dst "${CMAKE_BINARY_DIR}/${script_name}")
++    file(READ "${src}" contents)
++
++    # Split at the first newline (after shebang #!/bin/sh)
++    string(FIND "${contents}" "\n" index_of_first_newline_char)
++    math(EXPR first_index_script_body "${index_of_first_newline_char} + 1")
++
++    string(SUBSTRING "${contents}" 0 ${first_index_script_body} shebang_line)
++    string(SUBSTRING "${contents}" ${first_index_script_body} -1 script_body)
++
++    # Insert our environment variable lines
++    set(insert_content
++"# Most tests assume running from the project root
++cd ${CMAKE_SOURCE_DIR}
++export VALKEY_BIN_DIR=\"${CMAKE_BINARY_DIR}/bin\"
++")
++    # Reconstruct the full script
++    set(new_contents "${shebang_line}${insert_content}${script_body}")
++    file(WRITE "${dst}" "${new_contents}")
++    file(CHMOD "${dst}" PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
++endfunction()
++
++copy_runtest_script("runtest")
++copy_runtest_script("runtest-cluster")
++copy_runtest_script("runtest-moduleapi")
++copy_runtest_script("runtest-rdma")
 +copy_runtest_script("runtest-sentinel")
 +
 +
@@ -532,7 +646,7 @@ index 3c7c1b8a3..1c474ad9c 100644
 +endif() 
 +file(WRITE "${CMAKE_BINARY_DIR}/posix_stubs/sys/epoll.h" "#include <linux-epoll.h>\n") 
 diff --git a/cmake/Modules/Packaging.cmake b/cmake/Modules/Packaging.cmake
-index c7ed5c426..e8ca6b6bf 100644
+index c7ed5c426..0adddaccb 100644
 --- a/cmake/Modules/Packaging.cmake
 +++ b/cmake/Modules/Packaging.cmake
 @@ -23,7 +23,27 @@ if (DISTRO_NAME MATCHES ubuntu
@@ -571,7 +685,7 @@ index c7ed5c426..e8ca6b6bf 100644
 +
 +
 diff --git a/cmake/Modules/ValkeySetup.cmake b/cmake/Modules/ValkeySetup.cmake
-index 4efefefe6..8a0690920 100644
+index 4efefefe6..caf374909 100644
 --- a/cmake/Modules/ValkeySetup.cmake
 +++ b/cmake/Modules/ValkeySetup.cmake
 @@ -50,13 +50,23 @@ endif ()
@@ -719,7 +833,7 @@ index 4efefefe6..8a0690920 100644
 +
 +
 diff --git a/deps/libvalkey/CMakeLists.txt b/deps/libvalkey/CMakeLists.txt
-index 08c48d63f..ae9620fea 100644
+index c3632089b..7e44468ee 100644
 --- a/deps/libvalkey/CMakeLists.txt
 +++ b/deps/libvalkey/CMakeLists.txt
 @@ -46,7 +46,7 @@ set(valkey_sources
@@ -731,7 +845,7 @@ index 08c48d63f..ae9620fea 100644
      src/read.c
      src/sockcompat.c
      src/valkey.c
-@@ -100,6 +100,7 @@ if(valkey_compile_definitions)
+@@ -103,6 +103,7 @@ if(valkey_compile_definitions)
  endif()
  
  TARGET_INCLUDE_DIRECTORIES(valkey
@@ -739,7 +853,7 @@ index 08c48d63f..ae9620fea 100644
      PUBLIC
          $<INSTALL_INTERFACE:include>
          $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/valkey>
-@@ -139,7 +140,7 @@ set(CPACK_RPM_PACKAGE_LICENSE "BSD-3-Clause")
+@@ -143,7 +144,7 @@ set(CPACK_RPM_PACKAGE_LICENSE "BSD-3-Clause")
  include(CPack)
  
  INSTALL(TARGETS valkey
@@ -748,7 +862,7 @@ index 08c48d63f..ae9620fea 100644
      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-@@ -165,9 +166,7 @@ endif()
+@@ -169,9 +170,7 @@ endif()
  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey.pc
      DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
  
@@ -759,7 +873,7 @@ index 08c48d63f..ae9620fea 100644
  
  if(WIN32)
      SET(CMAKE_CONF_INSTALL_DIR share/valkey)
-@@ -182,10 +181,7 @@ configure_package_config_file(valkey-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}
+@@ -186,10 +185,7 @@ configure_package_config_file(valkey-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}
                                INSTALL_DESTINATION ${CMAKE_CONF_INSTALL_DIR}
                                PATH_VARS INCLUDE_INSTALL_DIR)
  
@@ -771,7 +885,7 @@ index 08c48d63f..ae9620fea 100644
  
  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey-config.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/valkey-config-version.cmake
-@@ -224,7 +220,7 @@ IF(ENABLE_TLS)
+@@ -229,7 +225,7 @@ IF(ENABLE_TLS)
      CONFIGURE_FILE(valkey_tls.pc.in valkey_tls.pc @ONLY)
  
      INSTALL(TARGETS valkey_tls
@@ -780,7 +894,7 @@ index 08c48d63f..ae9620fea 100644
          RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-@@ -243,9 +239,7 @@ IF(ENABLE_TLS)
+@@ -248,9 +244,7 @@ IF(ENABLE_TLS)
      INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_tls.pc
          DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
  
@@ -791,7 +905,7 @@ index 08c48d63f..ae9620fea 100644
  
      if(WIN32)
          SET(CMAKE_CONF_INSTALL_DIR share/valkey_tls)
-@@ -256,10 +250,7 @@ IF(ENABLE_TLS)
+@@ -261,10 +255,7 @@ IF(ENABLE_TLS)
                                    INSTALL_DESTINATION ${CMAKE_CONF_INSTALL_DIR}
                                    PATH_VARS INCLUDE_INSTALL_DIR)
  
@@ -803,7 +917,7 @@ index 08c48d63f..ae9620fea 100644
  
      INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_tls-config.cmake
          DESTINATION ${CMAKE_CONF_INSTALL_DIR})
-@@ -295,7 +286,7 @@ if(ENABLE_RDMA)
+@@ -301,7 +292,7 @@ if(ENABLE_RDMA)
      configure_file(valkey_rdma.pc.in valkey_rdma.pc @ONLY)
  
      install(TARGETS valkey_rdma
@@ -812,7 +926,7 @@ index 08c48d63f..ae9620fea 100644
          RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
          ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-@@ -307,19 +298,14 @@ if(ENABLE_RDMA)
+@@ -313,19 +304,14 @@ if(ENABLE_RDMA)
      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_rdma.pc
          DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
  
@@ -835,7 +949,7 @@ index 08c48d63f..ae9620fea 100644
      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_rdma-config.cmake
          DESTINATION ${CMAKE_CONF_INSTALL_DIR})
 diff --git a/deps/linenoise/CMakeLists.txt b/deps/linenoise/CMakeLists.txt
-index f801e4abf..6552f7ada 100644
+index f801e4abf..f61de5bda 100644
 --- a/deps/linenoise/CMakeLists.txt
 +++ b/deps/linenoise/CMakeLists.txt
 @@ -1,4 +1,5 @@
@@ -846,7 +960,7 @@ index f801e4abf..6552f7ada 100644
 +include_directories("${CMAKE_CURRENT_LIST_DIR}")
  add_library(linenoise STATIC ${SRCS})
 diff --git a/deps/lua/CMakeLists.txt b/deps/lua/CMakeLists.txt
-index 6a1396d66..203f27ba3 100644
+index 6a1396d66..bd9494871 100644
 --- a/deps/lua/CMakeLists.txt
 +++ b/deps/lua/CMakeLists.txt
 @@ -44,7 +44,9 @@ set(LUA_SRCS
@@ -861,7 +975,7 @@ index 6a1396d66..203f27ba3 100644
  # Use mkstemp if available
  check_function_exists(mkstemp HAVE_MKSTEMP)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 9e52edcf5..c15883b7c 100644
+index 6ef9d816f..e84508f43 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -13,6 +13,11 @@ list(APPEND SERVER_LIBS "hdr_histogram")
@@ -876,7 +990,7 @@ index 9e52edcf5..c15883b7c 100644
  add_dependencies(valkey-server generate_commands_def)
  add_dependencies(valkey-server generate_fmtargs_h)
  add_dependencies(valkey-server release_header)
-@@ -75,15 +80,5 @@ valkey_build_and_install_bin(valkey-cli "${VALKEY_CLI_SRCS}" "${VALKEY_SERVER_LD
+@@ -75,15 +80,6 @@ valkey_build_and_install_bin(valkey-cli "${VALKEY_CLI_SRCS}" "${VALKEY_SERVER_LD
  add_dependencies(valkey-cli generate_commands_def)
  add_dependencies(valkey-cli generate_fmtargs_h)
  
@@ -892,7 +1006,7 @@ index 9e52edcf5..c15883b7c 100644
  # Targets: valkey-sentinel, valkey-check-aof and valkey-check-rdb are just symbolic links
  valkey_create_symlink("valkey-server" "valkey-sentinel")
  valkey_create_symlink("valkey-server" "valkey-check-rdb")
-@@ -124,15 +119,18 @@ if (BUILD_EXAMPLE_MODULES)
+@@ -122,15 +118,18 @@ if (BUILD_EXAMPLE_MODULES)
  endif ()
  
  if (BUILD_UNIT_GTESTS)
@@ -916,7 +1030,7 @@ index 9e52edcf5..c15883b7c 100644
 +)
 +
 diff --git a/src/modules/lua/CMakeLists.txt b/src/modules/lua/CMakeLists.txt
-index 6b8d40a39..8c64ce1b8 100644
+index 6b8d40a39..63b0cb1fc 100644
 --- a/src/modules/lua/CMakeLists.txt
 +++ b/src/modules/lua/CMakeLists.txt
 @@ -1,23 +1,37 @@
