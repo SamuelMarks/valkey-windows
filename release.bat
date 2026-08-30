@@ -2,13 +2,14 @@
 setlocal enabledelayedexpansion
 
 if "%~1"=="" (
-    echo Usage: %0 ^<tag_or_branch^> [--local-only] [--hash ^<git_hash^>]
+    echo Usage: %0 ^<tag_or_branch^> [--local-only] [--hash ^<git_hash^>] [--msvc ^<version^>]
     exit /b 1
 )
 
 set LOCAL_ONLY=0
 set VALKEY_REF=
 set VALKEY_HASH=
+set MSVC_VER=
 
 :parse_args
 if "%~1"=="" goto validate_args
@@ -23,10 +24,16 @@ if "%~1"=="--hash" (
     shift
     goto parse_args
 )
+if "%~1"=="--msvc" (
+    set MSVC_VER=%~2
+    shift
+    shift
+    goto parse_args
+)
 if "!VALKEY_REF!"=="" (
     set VALKEY_REF=%~1
 ) else (
-    echo Usage: %0 ^<tag_or_branch^> [--local-only] [--hash ^<git_hash^>]
+    echo Usage: %0 ^<tag_or_branch^> [--local-only] [--hash ^<git_hash^>] [--msvc ^<version^>]
     exit /b 1
 )
 shift
@@ -133,7 +140,17 @@ echo $txt ^| Set-Content cmake\Modules\Packaging.cmake >> patch_cpack.ps1
 powershell -ExecutionPolicy Bypass -File patch_cpack.ps1
 
 echo Running CMake...
-cmake -S . -B %BUILD_DIR% -G "Visual Studio 17 2022"
+if "!MSVC_VER!"=="2022" (
+    cmake -S . -B %BUILD_DIR% -G "Visual Studio 17 2022" -A x64
+) else if "!MSVC_VER!"=="2026" (
+    cmake -S . -B %BUILD_DIR% -G "Visual Studio 18 2026" -A x64
+) else (
+    :: Try MSVC 2026 first, fallback to MSVC 2022 if not available
+    cmake -S . -B %BUILD_DIR% -G "Visual Studio 18 2026" -A x64
+    if errorlevel 1 (
+        cmake -S . -B %BUILD_DIR% -G "Visual Studio 17 2022" -A x64
+    )
+)
 if errorlevel 1 (
     echo CMake configuration failed
     exit /b 1
