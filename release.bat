@@ -95,9 +95,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Fixing 32-bit architecture misdetection...
-powershell -Command "(Get-Content src\server.c) -replace 'sizeof\(long\) == 8', 'sizeof(void*) == 8' | Set-Content src\server.c"
-
 echo Preparing Windows Service Wrapper...
 powershell -Command "Invoke-WebRequest -Uri 'https://github.com/winsw/winsw/releases/download/v3.0.0-alpha.11/WinSW-x64.exe' -OutFile 'valkey-service.exe'"
 copy /y "..\packaging\valkey-service.xml" "valkey-service.xml"
