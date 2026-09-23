@@ -1,115 +1,92 @@
 name: Build and Release Valkey Windows
 
 on:
-  workflow_dispatch:
-    inputs:
-      valkey_ref:
-        description: 'Valkey branch, tag, or SHA to build'
-        required: false
-        default: 'unstable'
+  push:
+    tags:
+      - 'v*'
+      - '9.*'
+      - '8.*'
+      - '7.*'
+      - '[0-9]+.*'
+      - '*unstable*'
   schedule:
     - cron: '0 0 * * 0' # Weekly check for new releases
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Valkey tag, branch, or SHA to build'
+        required: false
+        default: 'unstable'
+      valkey_ref:
+        description: 'Alias for version'
+        required: false
 
 permissions:
   contents: write
 
 jobs:
-  prepare:
+  check-upstream:
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     outputs:
-      ref: ${{ steps.determine-ref.outputs.ref }}
-      tag: ${{ steps.determine-ref.outputs.tag }}
-      release_name: ${{ steps.determine-ref.outputs.release_name }}
-      prerelease: ${{ steps.determine-ref.outputs.prerelease }}
-      should_run: ${{ steps.determine-ref.outputs.should_run }}
+      should_build: ${{ steps.check.outputs.should_build }}
+      version: ${{ steps.check.outputs.version }}
     steps:
-      - name: Determine Valkey Ref
-        id: determine-ref
-        uses: actions/github-script@v7
-        with:
-          script: |
-            let ref = 'unstable';
-            let releaseName = 'Valkey Unstable for Windows';
-            let tagName = 'unstable';
-            let prerelease = true;
-            let shouldRun = true;
+      - name: Check latest upstream release
+        id: check
+        run: |
+          LATEST_UPSTREAM=$(curl -s https://api.github.com/repos/valkey-io/valkey/releases/latest | jq -r .tag_name)
+          if [ "$LATEST_UPSTREAM" == "null" ] || [ -z "$LATEST_UPSTREAM" ]; then
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
-            if (context.eventName === 'schedule') {
-              const release = await github.rest.repos.getLatestRelease({
-                owner: 'valkey-io',
-                repo: 'valkey'
-              });
-              ref = release.data.tag_name;
-              tagName = ref;
-              releaseName = `Valkey ${ref} for Windows`;
-              prerelease = false;
+          LATEST_LOCAL=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/${{ github.repository }}/releases/tags/$LATEST_UPSTREAM | jq -r .tag_name)
 
-              try {
-                await github.rest.repos.getReleaseByTag({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  tag: tagName
-                });
-                console.log(`Release ${tagName} already exists. Skipping.`);
-                shouldRun = false;
-              } catch (e) {
-                if (e.status === 404) {
-                  console.log(`Release ${tagName} does not exist here. Proceeding.`);
-                } else {
-                  throw e;
-                }
-              }
-            } else if (context.eventName === 'workflow_dispatch') {
-              const inputRef = context.payload.inputs && context.payload.inputs.valkey_ref;
-              if (inputRef && inputRef.trim() !== '') {
-                ref = inputRef;
-                if (inputRef === 'unstable') {
-                  const date = new Date().toISOString().split('T')[0];
-                  const timestamp = new Date().getTime();
-                  tagName = `unstable-${date}-${timestamp}`;
-                  releaseName = `Valkey Unstable (${date}) for Windows`;
-                  prerelease = true;
-                } else {
-                  tagName = inputRef;
-                  releaseName = `Valkey ${inputRef} for Windows`;
-                  prerelease = false;
-                }
-              } else {
-                  const date = new Date().toISOString().split('T')[0];
-                  const timestamp = new Date().getTime();
-                  tagName = `unstable-${date}-${timestamp}`;
-                  releaseName = `Valkey Unstable (${date}) for Windows`;
-                  prerelease = true;
-              }
-            }
+          if [ "$LATEST_LOCAL" == "$LATEST_UPSTREAM" ]; then
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "version=$LATEST_UPSTREAM" >> $GITHUB_OUTPUT
+          fi
 
-            core.setOutput('ref', ref);
-            core.setOutput('tag', tagName);
-            core.setOutput('release_name', releaseName);
-            core.setOutput('prerelease', prerelease.toString());
-            core.setOutput('should_run', shouldRun.toString());
-
-  build-and-release:
-    needs: prepare
-    if: needs.prepare.outputs.should_run == 'true'
+  build:
+    needs: [check-upstream]
+    if: always() && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' && needs.check-upstream.outputs.should_build == 'true'))
     runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ github.event.inputs.version || github.event.inputs.valkey_ref || needs.check-upstream.outputs.version || github.ref_name }}
     steps:
       - name: Checkout Build Scripts
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: build-repo
 
+      - name: Determine Upstream Ref
+        id: determine_ref
+        run: |
+          $ref = $env:VERSION
+          if ($ref -match '^v(?<version>\d.*)') {
+              $ref = $Matches.version
+          } elseif ($ref -match 'unstable') {
+              $ref = 'unstable'
+          }
+          echo "UPSTREAM_REF=$ref" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Checkout Valkey
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: valkey-io/valkey
-          ref: ${{ needs.prepare.outputs.ref }}
+          ref: ${{ env.UPSTREAM_REF }}
           path: valkey
 
       - name: Checkout auto-win-msvc
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
-          repository: ${{ github.repository_owner }}/auto-win-msvc
+          repository: SamuelMarks/auto-win-msvc
           path: auto-win-msvc
         continue-on-error: true
 
@@ -135,7 +112,20 @@ jobs:
 
       - name: Configure CMake
         working-directory: valkey
-        run: cmake -S . -B build_msvc2026 -G "Visual Studio 17 2022"
+        run: |
+          $ErrorActionPreference = "Continue"
+          cmake -G "Visual Studio 18 2026" -A x64 -B build_msvc2026 -S . 2> $null
+          if ($LASTEXITCODE -ne 0) {
+              cmake -G "Visual Studio 17 2022" -A x64 -B build_msvc2026 -S . 2> $null
+              if ($LASTEXITCODE -ne 0) {
+                  cmake -B build_msvc2026 -S .
+                  if ($LASTEXITCODE -ne 0) {
+                      Write-Error "CMake configuration failed."
+                      exit 1
+                  }
+              }
+          }
+        shell: pwsh
 
       - name: Build Valkey
         working-directory: valkey
@@ -151,39 +141,50 @@ jobs:
         run: |
           set SERVER_EXE=build_msvc2026\bin\Release\valkey-server.exe
           set CLI_EXE=build_msvc2026\bin\Release\valkey-cli.exe
-          
+
           if not exist "%SERVER_EXE%" exit /b 1
           if not exist "%CLI_EXE%" exit /b 1
-          
+
           echo Starting Valkey Server...
           start "Valkey Server" "%SERVER_EXE%"
           ping 127.0.0.1 -n 4 > nul
-          
+
           echo Running tests...
           "%CLI_EXE%" PING > test_output.txt
           findstr "PONG" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
-          
+
           "%CLI_EXE%" SET mykey "Hello Windows" > test_output.txt
           findstr "OK" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
-          
+
           "%CLI_EXE%" GET mykey > test_output.txt
           findstr "Hello Windows" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
-          
+
           "%CLI_EXE%" KEYS * > test_output.txt
           findstr "mykey" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
-          
+
           "%CLI_EXE%" FLUSHDB > test_output.txt
           findstr "OK" test_output.txt > nul || (type test_output.txt & taskkill /f /im valkey-server.exe & exit /b 1)
-          
+
           echo Tests passed!
           taskkill /f /im valkey-server.exe
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
         with:
-          tag_name: ${{ needs.prepare.outputs.tag }}
-          name: ${{ needs.prepare.outputs.release_name }}
-          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
+          name: Valkey-Windows-Binaries
+          path: |
+            valkey/build_msvc2026/Valkey-*.zip
+            valkey/build_msvc2026/Valkey-*.msi
+            valkey/build_msvc2026/Valkey-*.exe
+            valkey/build_msvc2026/bin/Release/valkey-server.exe
+            valkey/build_msvc2026/bin/Release/valkey-cli.exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.event_name == 'push' && github.ref_name || (env.VERSION == 'unstable' && format('unstable-{0}', github.run_id) || env.VERSION) }}
+          name: Valkey ${{ env.VERSION }} for Windows
+          prerelease: ${{ contains(env.VERSION, 'unstable') || contains(env.VERSION, 'rc') || contains(env.VERSION, 'alpha') || contains(env.VERSION, 'beta') }}
           files: |
             valkey/build_msvc2026/Valkey-*.zip
             valkey/build_msvc2026/Valkey-*.msi

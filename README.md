@@ -1,4 +1,6 @@
-# Valkey Windows Native Builds
+Valkey (Microsoft Visual Studio built native releases)
+======================================================
+[![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 This repository serves the mission of providing **native, performant Windows builds** of [Valkey](https://github.com/valkey-io/valkey) using the Microsoft Visual C++ (MSVC) toolchain.
 
@@ -80,3 +82,21 @@ To build and test locally without creating any Git tags or uploading artifacts t
 .\release.bat 9.0.3 --local-only
 ```
 This is highly recommended for local testing and development.
+
+
+---
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
