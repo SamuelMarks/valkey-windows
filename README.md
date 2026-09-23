@@ -1,6 +1,8 @@
 Valkey (Microsoft Visual Studio built native releases)
 ======================================================
+
 [![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Build and Release Valkey Windows](https://github.com/SamuelMarks/valkey-windows/actions/workflows/release.yml/badge.svg)](https://github.com/SamuelMarks/valkey-windows/actions/workflows/release.yml)
 
 This repository serves the mission of providing **native, performant Windows builds** of [Valkey](https://github.com/valkey-io/valkey) using the Microsoft Visual C++ (MSVC) toolchain.
 

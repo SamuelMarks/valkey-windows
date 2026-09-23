@@ -1,0 +1,30 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: enforce-gitattributes
+        name: Enforce .gitattributes line endings & encoding
+        entry: python scripts/enforce_gitattributes.py --fix
+        language: python
+        pass_filenames: true
+
+      - id: build
+        name: Build (MSVC / Wine)
+        entry: python scripts/precommit_matrix.py build
+        language: python
+        pass_filenames: false
+
+      - id: test
+        name: Test (MSVC / Wine)
+        entry: python scripts/precommit_matrix.py test
+        language: python
+        pass_filenames: false

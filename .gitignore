@@ -10,6 +10,11 @@ build*/
 # Test Outputs
 test_output.txt
 malloc_log.txt
+.coverage
+
+# Python
+__pycache__/
+*.py[cod]
 
 # IDEs and Editors
 .vscode/
