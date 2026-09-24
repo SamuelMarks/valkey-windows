@@ -116,8 +116,8 @@ echo     set(CPACK_PACKAGE_NAME "Valkey") >> patch_cpack.ps1
 echo     set(CPACK_PACKAGE_VENDOR "Valkey") >> patch_cpack.ps1
 echo     set(CPACK_WIX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../packaging/wix_patch.xml") >> patch_cpack.ps1
 echo     set(CPACK_WIX_UPGRADE_GUID "68097E99-AC62-42B7-B0E3-02FE50FBB6CB") >> patch_cpack.ps1
-echo     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" install'\nExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" start'") >> patch_cpack.ps1
-echo     set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "ExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" stop'\nExecWait '$\\\"$INSTDIR\\\\bin\\\\valkey-service.exe$\\\" uninstall'") >> patch_cpack.ps1
+echo     set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\\\"$INSTDIR\\\\bin\\\\valkey-service.exe\\\" install'\nExecWait '\\\"$INSTDIR\\\\bin\\\\valkey-service.exe\\\" start'") >> patch_cpack.ps1
+echo     set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "ExecWait '\\\"$INSTDIR\\\\bin\\\\valkey-service.exe\\\" stop'\nExecWait '\\\"$INSTDIR\\\\bin\\\\valkey-service.exe\\\" uninstall'") >> patch_cpack.ps1
 echo     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING.txt") >> patch_cpack.ps1
 echo endif() >> patch_cpack.ps1
 echo include(CPack) >> patch_cpack.ps1

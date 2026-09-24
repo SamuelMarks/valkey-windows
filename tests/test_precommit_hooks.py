@@ -507,5 +507,60 @@ class TestPrecommitMatrix(unittest.TestCase):
             self.assertEqual(cm.exception.code, 1)
 
 
+class TestPackagingConfigs(unittest.TestCase):
+    """
+    Test suite for CPack configuration files and packaging patch integrity.
+    """
+
+    def test_cpack_cmake_syntax(self):
+        """
+        Verify that CPackConfig.cmake and CPackSourceConfig.cmake are syntactically valid CMake code.
+        """
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        for cfg_name in ["CPackConfig.cmake", "CPackSourceConfig.cmake"]:
+            cfg_path = os.path.join(repo_root, cfg_name)
+            if os.path.exists(cfg_path):
+                proc = subprocess.run(
+                    ["cmake", "-P", cfg_path],
+                    capture_output=True,
+                    text=True
+                )
+                self.assertEqual(
+                    proc.returncode, 0,
+                    f"Syntax error in {cfg_name}:\n{proc.stderr}"
+                )
+
+    def test_patch_cpack_escaping(self):
+        """
+        Verify that patches/0001-Windows-native-builds.patch uses correct CMake escaping
+        for CPACK_NSIS_EXTRA_* commands to avoid invalid escape characters in generated CPackConfig.cmake.
+        """
+        patch_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "patches", "0001-Windows-native-builds.patch")
+        )
+        self.assertTrue(os.path.isfile(patch_path))
+
+        with open(patch_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Ensure problematic unescaped characters are not present in the patch
+        self.assertNotIn(
+            r"""$\"$INSTDIR\bin\valkey-service.exe$\"""",
+            content,
+            "Found invalid NSIS command string in patch file"
+        )
+        # Ensure proper escaping exists in the patch
+        self.assertIn(
+            "\\\\\\\\bin\\\\\\\\valkey-service.exe",
+            content,
+            "Patch must contain quadrupled backslashes for NSIS path in CMake string"
+        )
+        self.assertIn(
+            "\\\\\\\"",
+            content,
+            "Patch must contain escaped quotes for NSIS command in CMake string"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
