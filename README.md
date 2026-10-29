@@ -74,14 +74,14 @@ For convenience, we provide a complete, automated build and test script (`releas
 
 **Usage:**
 
-To build, test, and completely release a specific version to GitHub (e.g., version `9.0.3`):
+To build, test, and completely release a specific version to GitHub (e.g., version `9.1.3`):
 ```cmd
-.\release.bat 9.0.3
+.\release.bat 9.1.3
 ```
 
 To build and test locally without creating any Git tags or uploading artifacts to GitHub, append the `--local-only` flag:
 ```cmd
-.\release.bat 9.0.3 --local-only
+.\release.bat 9.1.3 --local-only
 ```
 This is highly recommended for local testing and development.
 

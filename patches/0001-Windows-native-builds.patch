@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 3c7c1b8..cbc6109 100644
+index 3c7c1b8a3..cbc610924 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -1,7 +1,7 @@
@@ -567,7 +567,7 @@ index 3c7c1b8..cbc6109 100644
 +endif() 
 +file(WRITE "${CMAKE_BINARY_DIR}/posix_stubs/sys/epoll.h" "#include <linux-epoll.h>\n") 
 diff --git a/cmake/Modules/Packaging.cmake b/cmake/Modules/Packaging.cmake
-index c7ed5c4..7e64fc4 100644
+index c7ed5c426..a14361bce 100644
 --- a/cmake/Modules/Packaging.cmake
 +++ b/cmake/Modules/Packaging.cmake
 @@ -23,6 +23,18 @@ if (DISTRO_NAME MATCHES ubuntu
@@ -590,7 +590,7 @@ index c7ed5c4..7e64fc4 100644
  unset(DISTRO_NAME CACHE)
  
 diff --git a/cmake/Modules/ValkeySetup.cmake b/cmake/Modules/ValkeySetup.cmake
-index 4efefef..576ac2e 100644
+index 4efefefe6..576ac2e70 100644
 --- a/cmake/Modules/ValkeySetup.cmake
 +++ b/cmake/Modules/ValkeySetup.cmake
 @@ -50,13 +50,23 @@ endif ()
@@ -738,7 +738,7 @@ index 4efefef..576ac2e 100644
 +
 +
 diff --git a/deps/libvalkey/CMakeLists.txt b/deps/libvalkey/CMakeLists.txt
-index c363208..a593658 100644
+index c3632089b..a593658e3 100644
 --- a/deps/libvalkey/CMakeLists.txt
 +++ b/deps/libvalkey/CMakeLists.txt
 @@ -46,9 +46,9 @@ set(valkey_sources
@@ -857,7 +857,7 @@ index c363208..a593658 100644
      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/valkey_rdma-config.cmake
          DESTINATION ${CMAKE_CONF_INSTALL_DIR})
 diff --git a/deps/linenoise/CMakeLists.txt b/deps/linenoise/CMakeLists.txt
-index f801e4a..6552f7a 100644
+index f801e4abf..6552f7ada 100644
 --- a/deps/linenoise/CMakeLists.txt
 +++ b/deps/linenoise/CMakeLists.txt
 @@ -1,4 +1,5 @@
@@ -868,7 +868,7 @@ index f801e4a..6552f7a 100644
 +include_directories("${CMAKE_CURRENT_LIST_DIR}")
  add_library(linenoise STATIC ${SRCS})
 diff --git a/deps/lua/CMakeLists.txt b/deps/lua/CMakeLists.txt
-index 6a1396d..203f27b 100644
+index 6a1396d66..203f27ba3 100644
 --- a/deps/lua/CMakeLists.txt
 +++ b/deps/lua/CMakeLists.txt
 @@ -44,7 +44,9 @@ set(LUA_SRCS
@@ -883,7 +883,7 @@ index 6a1396d..203f27b 100644
  # Use mkstemp if available
  check_function_exists(mkstemp HAVE_MKSTEMP)
 diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
-index 6ef9d81..c2c7542 100644
+index 6ef9d816f..c2c754281 100644
 --- a/src/CMakeLists.txt
 +++ b/src/CMakeLists.txt
 @@ -13,6 +13,11 @@ list(APPEND SERVER_LIBS "hdr_histogram")
@@ -938,7 +938,7 @@ index 6ef9d81..c2c7542 100644
 +)
 +
 diff --git a/src/modules/lua/CMakeLists.txt b/src/modules/lua/CMakeLists.txt
-index 6b8d40a..8c64ce1 100644
+index 6b8d40a39..8c64ce1b8 100644
 --- a/src/modules/lua/CMakeLists.txt
 +++ b/src/modules/lua/CMakeLists.txt
 @@ -1,23 +1,37 @@
